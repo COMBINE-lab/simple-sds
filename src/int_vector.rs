@@ -185,6 +185,13 @@ impl IntVector {
             limit: self.len(),
         }
     }
+
+    pub fn from_parts(len: usize, width: usize, data: RawVector) -> Self {
+        assert!((len * width) <= data.len());
+        Self {
+            len, width, data
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
