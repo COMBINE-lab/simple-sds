@@ -527,7 +527,8 @@ impl AccessRaw for RawVector {
     #[inline]
     fn bit(&self, bit_offset: usize) -> bool {
         let (index, offset) = bits::split_offset(bit_offset);
-        ((self.data[index] >> offset) & 1) == 1
+        // ((self.data[index] >> offset) & 1) == 1
+        (self.data[index] & BIT_MASK[offset]) > 0
     }
 
     #[inline]
@@ -964,7 +965,8 @@ impl<'a> AccessRaw for RawVectorMapper<'a> {
     #[inline]
     fn bit(&self, bit_offset: usize) -> bool {
         let (index, offset) = bits::split_offset(bit_offset);
-        ((self.data[index] >> offset) & 1) == 1
+        // ((self.data[index] >> offset) & 1) == 1
+        (self.data[index] & BIT_MASK[offset]) > 0
     }
 
     #[inline]
@@ -1029,3 +1031,75 @@ impl<'a> AsRef<MappedSlice<'a, u64>> for RawVectorMapper<'a> {
 }
 
 //-----------------------------------------------------------------------------
+
+// A bitmask that masks out all but the bit at pos
+const fn bitmask(pos: usize) -> u64 {
+    1 << pos
+}
+
+const BIT_MASK: [u64; 64] = [
+    bitmask(0),
+    bitmask(1),
+    bitmask(2),
+    bitmask(3),
+    bitmask(4),
+    bitmask(5),
+    bitmask(6),
+    bitmask(7),
+    bitmask(8),
+    bitmask(9),
+    bitmask(10),
+    bitmask(11),
+    bitmask(12),
+    bitmask(13),
+    bitmask(14),
+    bitmask(15),
+    bitmask(16),
+    bitmask(17),
+    bitmask(18),
+    bitmask(19),
+    bitmask(20),
+    bitmask(21),
+    bitmask(22),
+    bitmask(23),
+    bitmask(24),
+    bitmask(25),
+    bitmask(26),
+    bitmask(27),
+    bitmask(28),
+    bitmask(29),
+    bitmask(30),
+    bitmask(31),
+    bitmask(32),
+    bitmask(33),
+    bitmask(34),
+    bitmask(35),
+    bitmask(36),
+    bitmask(37),
+    bitmask(38),
+    bitmask(39),
+    bitmask(40),
+    bitmask(41),
+    bitmask(42),
+    bitmask(43),
+    bitmask(44),
+    bitmask(45),
+    bitmask(46),
+    bitmask(47),
+    bitmask(48),
+    bitmask(49),
+    bitmask(50),
+    bitmask(51),
+    bitmask(52),
+    bitmask(53),
+    bitmask(54),
+    bitmask(55),
+    bitmask(56),
+    bitmask(57),
+    bitmask(58),
+    bitmask(59),
+    bitmask(60),
+    bitmask(61),
+    bitmask(62),
+    bitmask(63),
+];
