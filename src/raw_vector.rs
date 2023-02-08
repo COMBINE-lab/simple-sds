@@ -516,6 +516,11 @@ impl RawVector {
             }
         }
     }
+
+    pub fn from_parts(len: usize, data: Vec<u64>) -> Self {
+        assert!(len <= (data.len() * 64));
+        Self { len, data }
+    }
 }
 
 //-----------------------------------------------------------------------------

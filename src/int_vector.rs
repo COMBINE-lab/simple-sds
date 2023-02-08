@@ -164,6 +164,13 @@ impl IntVector {
     pub fn size_by_params(capacity: usize, width: usize) -> usize {
         2 + RawVector::size_by_params(capacity * width)
     }
+
+    pub fn from_parts(len: usize, width: usize, data: RawVector) -> Self {
+        assert!((len * width) <= data.len());
+        Self {
+            len, width, data
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
