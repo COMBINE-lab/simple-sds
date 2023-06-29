@@ -10,13 +10,13 @@
 //! As in wavelet trees, access and rank queries proceed down from level `0`, while select queries go up from level `width - 1`.
 
 use crate::int_vector::IntVector;
-use crate::ops::{Vector, Access, AccessIter, VectorIndex, Pack};
+use crate::ops::{Access, AccessIter, Pack, Vector, VectorIndex};
 use crate::serialize::Serialize;
 use crate::wavelet_matrix::wm_core::WMCore;
 
+use std::io;
 use std::io::{Error, ErrorKind};
 use std::iter::FusedIterator;
-use std::io;
 
 pub mod wm_core;
 
@@ -104,7 +104,11 @@ impl WaveletMatrix {
     }
 
     // Computes `first` from an iterator.
-    fn start_offsets<Iter: Iterator<Item = u64>>(iter: Iter, len: usize, max_value: u64) -> IntVector {
+    fn start_offsets<Iter: Iterator<Item = u64>>(
+        iter: Iter,
+        len: usize,
+        max_value: u64,
+    ) -> IntVector {
         // Count the number of occurrences of each value.
         let mut counts: Vec<(u64, usize)> = Vec::with_capacity((max_value + 1) as usize);
         for i in 0..=max_value {
@@ -143,12 +147,16 @@ macro_rules! wavelet_matrix_from {
             fn from(source: Vec<$t>) -> Self {
                 let len = source.len();
                 let max_value = source.iter().cloned().max().unwrap_or(0);
-                let first = Self::start_offsets(source.iter().map(|x| *x as u64), source.len(), max_value as u64);
+                let first = Self::start_offsets(
+                    source.iter().map(|x| *x as u64),
+                    source.len(),
+                    max_value as u64,
+                );
                 let data = WMCore::from(source);
-                WaveletMatrix { len, data, first, }
+                WaveletMatrix { len, data, first }
             }
         }
-    }
+    };
 }
 
 wavelet_matrix_from!(u8);
@@ -205,7 +213,9 @@ impl<'a> VectorIndex<'a> for WaveletMatrix {
     }
 
     fn inverse_select(&self, index: usize) -> Option<(usize, <Self as Vector>::Item)> {
-        self.data.map_down(index).map(|(index, value)| (index - self.start(value), value))
+        self.data
+            .map_down(index)
+            .map(|(index, value)| (index - self.start(value), value))
     }
 
     fn value_iter(&'a self, value: <Self as Vector>::Item) -> Self::ValueIter {
@@ -251,11 +261,14 @@ impl Serialize for WaveletMatrix {
         let len = usize::load(reader)?;
         let data = WMCore::load(reader)?;
         if data.len() != len {
-            return Err(Error::new(ErrorKind::InvalidData, "Core length does not match wavelet matrix length"));
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Core length does not match wavelet matrix length",
+            ));
         }
 
         let first = IntVector::load(reader)?;
-        Ok(WaveletMatrix { len, data, first, })
+        Ok(WaveletMatrix { len, data, first })
     }
 
     fn size_in_elements(&self) -> usize {

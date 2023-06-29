@@ -16,10 +16,10 @@ pub mod bits;
 pub mod int_vector;
 pub mod ops;
 pub mod raw_vector;
+pub mod serde_compat;
 pub mod serialize;
 pub mod sparse_vector;
 pub mod wavelet_matrix;
-pub mod serde_compat;
 
 #[cfg(any(test, feature = "binaries"))]
 #[doc(hidden)]

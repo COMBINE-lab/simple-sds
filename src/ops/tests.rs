@@ -55,7 +55,8 @@ impl<'a> Iterator for ValueIter<'a> {
         while self.index < self.parent.len() {
             if self.parent.get(self.index) == self.value {
                 let result = Some((self.rank, self.index));
-                self.rank += 1; self.index += 1;
+                self.rank += 1;
+                self.index += 1;
                 return result;
             }
             self.index += 1;
@@ -106,7 +107,12 @@ impl<'a> VectorIndex<'a> for NaiveVector {
 
     fn select_iter(&'a self, rank: usize, value: <Self as Vector>::Item) -> Self::ValueIter {
         let index = self.select(rank, value).unwrap_or(self.len());
-        Self::ValueIter { parent: self, value, rank, index, }
+        Self::ValueIter {
+            parent: self,
+            value,
+            rank,
+            index,
+        }
     }
 }
 
@@ -117,14 +123,24 @@ fn access_iter() {
     let data = internal::random_vector(322, 7);
     let naive = NaiveVector::from(data.clone());
 
-    assert!(naive.iter().eq(data.iter().cloned()), "Invalid values from iterator");
+    assert!(
+        naive.iter().eq(data.iter().cloned()),
+        "Invalid values from iterator"
+    );
 
     let mut naive_iter = naive.iter();
     let mut data_iter = data.iter().cloned();
     while let Some(value) = naive_iter.next_back() {
-        assert_eq!(Some(value), data_iter.next_back(), "Invalid values from reverse iterator");
+        assert_eq!(
+            Some(value),
+            data_iter.next_back(),
+            "Invalid values from reverse iterator"
+        );
     }
-    assert!(data_iter.next_back().is_none(), "Did not get enough values from reverse iterator");
+    assert!(
+        data_iter.next_back().is_none(),
+        "Did not get enough values from reverse iterator"
+    );
 }
 
 #[test]
@@ -134,12 +150,22 @@ fn access_iter_nth() {
 
     // Forward.
     for i in 0..naive.len() {
-        assert_eq!(naive.iter().nth(i), Some(naive.get(i)), "Invalid nth({})", i);
+        assert_eq!(
+            naive.iter().nth(i),
+            Some(naive.get(i)),
+            "Invalid nth({})",
+            i
+        );
     }
 
     // Backward.
     for i in 0..naive.len() {
-        assert_eq!(naive.iter().nth_back(i), Some(naive.get(naive.len() - 1 - i)), "Invalid nth_back({})", i);
+        assert_eq!(
+            naive.iter().nth_back(i),
+            Some(naive.get(naive.len() - 1 - i)),
+            "Invalid nth_back({})",
+            i
+        );
     }
 }
 
@@ -168,4 +194,3 @@ fn pred_succ() {
 }
 
 //-----------------------------------------------------------------------------
-

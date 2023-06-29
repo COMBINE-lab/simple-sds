@@ -1,10 +1,10 @@
-use serde::de::Deserializer;
-use serde::ser::Serializer;
-use serde::{Deserialize, Serialize};
 use crate::bit_vector::BitVector;
 use crate::int_vector::IntVector;
 use crate::ops::{Rank, Select, SelectZero, Vector};
 use crate::raw_vector::RawVector;
+use serde::de::Deserializer;
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 
 // Extension traits to serialize simple-sds datastructures since they do not

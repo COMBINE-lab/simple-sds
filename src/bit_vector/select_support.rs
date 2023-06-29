@@ -27,10 +27,10 @@
 //! The space overhead is 18.75% in the worst case.
 
 use crate::bit_vector::{BitVector, Transformation};
-use crate::int_vector::IntVector;
-use crate::ops::{Vector, Resize, Pack, Access, Push, BitVec};
-use crate::serialize::Serialize;
 use crate::bits;
+use crate::int_vector::IntVector;
+use crate::ops::{Access, BitVec, Pack, Push, Resize, Vector};
+use crate::serialize::Serialize;
 
 use std::io::{Error, ErrorKind};
 use std::{io, marker};
@@ -69,6 +69,13 @@ impl<T: Transformation> SelectSupport<T> {
     const BLOCK_SIZE: usize = 64;
     const BLOCK_MASK: usize = 0x3F;
 
+    pub fn num_bits(&self) -> usize {
+        std::mem::size_of::<Self>() * 8
+            + self.samples.num_bits()
+            + self.long.num_bits()
+            + self.short.num_bits()
+    }
+
     /// Returns the number superblocks in the bitvector.
     pub fn superblocks(&self) -> usize {
         self.samples.len() / 2
@@ -100,7 +107,8 @@ impl<T: Transformation> SelectSupport<T> {
     /// assert_eq!(ss.short_superblocks(), 1);
     /// ```
     pub fn new(parent: &BitVector) -> SelectSupport<T> {
-        let superblocks = (T::count_ones(parent) + Self::SUPERBLOCK_SIZE - 1) / Self::SUPERBLOCK_SIZE;
+        let superblocks =
+            (T::count_ones(parent) + Self::SUPERBLOCK_SIZE - 1) / Self::SUPERBLOCK_SIZE;
         let log4 = bits::bit_len(parent.len() as u64);
         let log4 = log4 * log4;
         let log4 = log4 * log4;
@@ -198,11 +206,13 @@ impl<T: Transformation> SelectSupport<T> {
             // from the start of the current word.
             if relative_rank > 0 {
                 let (mut word, word_offset) = bits::split_offset(result);
-                let mut value: u64 = T::word(parent, word) & unsafe { !bits::low_set_unchecked(word_offset) };
+                let mut value: u64 =
+                    T::word(parent, word) & unsafe { !bits::low_set_unchecked(word_offset) };
                 loop {
                     let ones = value.count_ones() as usize;
                     if ones > relative_rank {
-                        result = bits::bit_offset(word, unsafe { bits::select(value, relative_rank) });
+                        result =
+                            bits::bit_offset(word, unsafe { bits::select(value, relative_rank) });
                         break;
                     }
                     relative_rank -= ones;
@@ -238,7 +248,8 @@ impl<T: Transformation> SelectSupport<T> {
             // from the start of the current word.
             if relative_rank > 0 {
                 let (mut word, word_offset) = bits::split_offset(result);
-                let mut value: u64 = T::word_unchecked(parent, word) & !bits::low_set_unchecked(word_offset);
+                let mut value: u64 =
+                    T::word_unchecked(parent, word) & !bits::low_set_unchecked(word_offset);
                 loop {
                     let ones = value.count_ones() as usize;
                     if ones > relative_rank {
@@ -281,15 +292,19 @@ impl<T: Transformation> Serialize for SelectSupport<T> {
             _marker: marker::PhantomData,
         };
         if result.superblocks() != result.long_superblocks() + result.short_superblocks() {
-            Err(Error::new(ErrorKind::InvalidData, "Invalid long/short superblock counts"))
-        }
-        else {
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Invalid long/short superblock counts",
+            ))
+        } else {
             Ok(result)
         }
     }
 
     fn size_in_elements(&self) -> usize {
-        self.samples.size_in_elements() + self.long.size_in_elements() + self.short.size_in_elements()
+        self.samples.size_in_elements()
+            + self.long.size_in_elements()
+            + self.short.size_in_elements()
     }
 }
 
@@ -300,7 +315,7 @@ mod tests {
     use super::*;
     use crate::bit_vector::{BitVector, Identity};
     use crate::ops::BitVec;
-    use crate::raw_vector::{RawVector, PushRaw};
+    use crate::raw_vector::{PushRaw, RawVector};
     use crate::serialize;
     use rand::distributions::{Bernoulli, Distribution};
 
@@ -308,9 +323,21 @@ mod tests {
     fn empty_vector() {
         let bv = BitVector::from(RawVector::new());
         let ss = SelectSupport::<Identity>::new(&bv);
-        assert_eq!(ss.superblocks(), 0, "Non-zero select superblocks for empty vector");
-        assert_eq!(ss.long_superblocks(), 0, "Non-zero long superblocks for empty vector");
-        assert_eq!(ss.short_superblocks(), 0, "Non-zero short superblocks for empty vector");
+        assert_eq!(
+            ss.superblocks(),
+            0,
+            "Non-zero select superblocks for empty vector"
+        );
+        assert_eq!(
+            ss.long_superblocks(),
+            0,
+            "Non-zero long superblocks for empty vector"
+        );
+        assert_eq!(
+            ss.short_superblocks(),
+            0,
+            "Non-zero short superblocks for empty vector"
+        );
     }
 
     fn with_density(len: usize, density: f64) -> RawVector {
@@ -329,25 +356,57 @@ mod tests {
         let data = with_density(len, density);
         let bv = BitVector::from(data.clone());
         let ss = SelectSupport::<Identity>::new(&bv);
-        assert_eq!(bv.len(), len, "test_vector({}, {}): invalid bitvector length", len, density);
+        assert_eq!(
+            bv.len(),
+            len,
+            "test_vector({}, {}): invalid bitvector length",
+            len,
+            density
+        );
 
         let superblocks = ss.superblocks();
         let long = ss.long_superblocks();
         let short = ss.short_superblocks();
-        assert_eq!(superblocks, long + short, "test_vector({}, {}): block counts do not match", len, density);
+        assert_eq!(
+            superblocks,
+            long + short,
+            "test_vector({}, {}): block counts do not match",
+            len,
+            density
+        );
 
         // This test assumes that the number of ones is within 6 stdevs of the expected.
         let ones: f64 = bv.count_ones() as f64;
         let expected: f64 = len as f64 * density;
         let stdev: f64 = (len as f64 * density * (1.0 - density)).sqrt();
-        assert!(ones >= expected - 6.0 * stdev && ones <= expected + 6.0 * stdev,
-            "test_vector({}, {}): unexpected number of ones: {}", len, density, ones);
+        assert!(
+            ones >= expected - 6.0 * stdev && ones <= expected + 6.0 * stdev,
+            "test_vector({}, {}): unexpected number of ones: {}",
+            len,
+            density,
+            ones
+        );
 
         let mut next: usize = 0;
         for i in 0..bv.count_ones() {
             let value = ss.select(&bv, i);
-            assert!(value >= next, "test_vector({}, {}): select({}) == {}, expected at least {}", len, density, i, value, next);
-            assert!(bv.get(value), "test_vector({}, {}): select({}) == {} is not set", len, density, i, value);
+            assert!(
+                value >= next,
+                "test_vector({}, {}): select({}) == {}, expected at least {}",
+                len,
+                density,
+                i,
+                value,
+                next
+            );
+            assert!(
+                bv.get(value),
+                "test_vector({}, {}): select({}) == {} is not set",
+                len,
+                density,
+                i,
+                value
+            );
             next = value + 1;
         }
 
@@ -355,8 +414,23 @@ mod tests {
             let mut next: usize = 0;
             for i in 0..bv.count_ones() {
                 let value = ss.select_unchecked(&bv, i);
-                assert!(value >= next, "test_vector({}, {}): select_unchecked({}) == {}, expected at least {}", len, density, i, value, next);
-                assert!(bv.get(value), "test_vector({}, {}): select_unchecked({}) == {} is not set", len, density, i, value);
+                assert!(
+                    value >= next,
+                    "test_vector({}, {}): select_unchecked({}) == {}, expected at least {}",
+                    len,
+                    density,
+                    i,
+                    value,
+                    next
+                );
+                assert!(
+                    bv.get(value),
+                    "test_vector({}, {}): select_unchecked({}) == {} is not set",
+                    len,
+                    density,
+                    i,
+                    value
+                );
                 next = value + 1;
             }
         }

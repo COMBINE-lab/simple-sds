@@ -2,13 +2,13 @@
 
 use crate::bit_vector::rank_support::RankSupport;
 use crate::bit_vector::select_support::SelectSupport;
-use crate::ops::{BitVec, Rank, Select, SelectZero, PredSucc};
-use crate::raw_vector::{RawVector, AccessRaw, PushRaw};
-use crate::serialize::Serialize;
 use crate::bits;
+use crate::ops::{BitVec, PredSucc, Rank, Select, SelectZero};
+use crate::raw_vector::{AccessRaw, PushRaw, RawVector};
+use crate::serialize::Serialize;
 
 use std::io::{Error, ErrorKind};
-use std::iter::{FusedIterator, FromIterator};
+use std::iter::{FromIterator, FusedIterator};
 use std::{cmp, io, marker};
 
 pub mod rank_support;
@@ -106,6 +106,32 @@ pub struct BitVector {
     rank: Option<RankSupport>,
     select: Option<SelectSupport<Identity>>,
     select_zero: Option<SelectSupport<Complement>>,
+}
+
+impl BitVector {
+    pub fn num_bits(&self) -> usize {
+        // self.ones + self.data
+        let mut bytes = std::mem::size_of::<usize>();
+        bytes += std::mem::size_of::<Option<RankSupport>>();
+        bytes += std::mem::size_of::<Option<SelectSupport<Identity>>>();
+        bytes += std::mem::size_of::<Option<SelectSupport<Complement>>>();
+
+        let mut nb = bytes * 8 + self.data.num_bits();
+
+        if let Some(rank) = &self.rank {
+            nb += rank.num_bits() - std::mem::size_of::<RankSupport>() * 8
+        }
+
+        if let Some(select) = &self.select {
+            nb += select.num_bits() - std::mem::size_of::<SelectSupport<Identity>>() * 8
+        }
+
+        if let Some(select_zero) = &self.select_zero {
+            nb += select_zero.num_bits() - std::mem::size_of::<SelectSupport<Complement>>() * 8
+        }
+
+        nb
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -420,7 +446,8 @@ impl<'a, T: Transformation + ?Sized> Iterator for OneIter<'a, T> {
             let (mut index, offset) = bits::split_offset(self.next.1);
             // We trust that the iterator has been initialized properly and the above check
             // guarantees that `self.next.1 < self.limit.1` and `self.limit.1 <= self.parent.len()`.
-            let mut word = unsafe { T::word_unchecked(self.parent, index) & !bits::low_set_unchecked(offset) };
+            let mut word =
+                unsafe { T::word_unchecked(self.parent, index) & !bits::low_set_unchecked(offset) };
             while word == 0 {
                 index += 1;
                 word = unsafe { T::word_unchecked(self.parent, index) };
@@ -438,7 +465,8 @@ impl<'a, T: Transformation + ?Sized> Iterator for OneIter<'a, T> {
             return None;
         }
         let (mut index, offset) = bits::split_offset(self.next.1);
-        let mut word = unsafe { T::word_unchecked(self.parent, index) & !bits::low_set_unchecked(offset) };
+        let mut word =
+            unsafe { T::word_unchecked(self.parent, index) & !bits::low_set_unchecked(offset) };
         let mut relative_rank = n;
         let mut ones = word.count_ones() as usize;
         while ones <= relative_rank {
@@ -469,7 +497,9 @@ impl<'a, T: Transformation + ?Sized> DoubleEndedIterator for OneIter<'a, T> {
             let (mut index, offset) = bits::split_offset(self.limit.1);
             // We trust that the iterator has been initialized properly and the above check
             // guarantees that `self.next.1 <= self.limit.1` and `self.limit.1 < self.parent.len()`.
-            let mut word = unsafe { T::word_unchecked(self.parent, index) & bits::low_set_unchecked(offset + 1) };
+            let mut word = unsafe {
+                T::word_unchecked(self.parent, index) & bits::low_set_unchecked(offset + 1)
+            };
             while word == 0 {
                 index -= 1;
                 word = unsafe { T::word_unchecked(self.parent, index) };
@@ -511,8 +541,8 @@ impl<'a> Select<'a> for BitVector {
     }
 
     fn select(&'a self, rank: usize) -> Option<usize> {
-         if rank >= Identity::count_ones(self) {
-             None
+        if rank >= Identity::count_ones(self) {
+            None
         } else {
             let select_support = self.select.as_ref().unwrap();
             let value = unsafe { select_support.select_unchecked(self, rank) };
@@ -521,8 +551,8 @@ impl<'a> Select<'a> for BitVector {
     }
 
     fn select_iter(&'a self, rank: usize) -> Self::OneIter {
-         if rank >= Identity::count_ones(self) {
-             Self::OneIter::empty_iter(self)
+        if rank >= Identity::count_ones(self) {
+            Self::OneIter::empty_iter(self)
         } else {
             let select_support = self.select.as_ref().unwrap();
             let value = unsafe { select_support.select_unchecked(self, rank) };
@@ -562,8 +592,8 @@ impl<'a> SelectZero<'a> for BitVector {
     }
 
     fn select_zero(&'a self, rank: usize) -> Option<usize> {
-         if rank >= Complement::count_ones(self) {
-             None
+        if rank >= Complement::count_ones(self) {
+            None
         } else {
             let select_support = self.select_zero.as_ref().unwrap();
             let value = unsafe { select_support.select_unchecked(self, rank) };
@@ -572,8 +602,8 @@ impl<'a> SelectZero<'a> for BitVector {
     }
 
     fn select_zero_iter(&'a self, rank: usize) -> Self::ZeroIter {
-         if rank >= Complement::count_ones(self) {
-             Self::ZeroIter::empty_iter(self)
+        if rank >= Complement::count_ones(self) {
+            Self::ZeroIter::empty_iter(self)
         } else {
             let select_support = self.select_zero.as_ref().unwrap();
             let value = unsafe { select_support.select_unchecked(self, rank) };
@@ -646,35 +676,55 @@ impl Serialize for BitVector {
         let rank = Option::<RankSupport>::load(reader)?;
         if let Some(value) = rank.as_ref() {
             if value.blocks() != bits::div_round_up(data.len(), RankSupport::BLOCK_SIZE) {
-                return Err(Error::new(ErrorKind::InvalidData, "Invalid number of rank blocks"))
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid number of rank blocks",
+                ));
             }
         }
 
         let select = Option::<SelectSupport<Identity>>::load(reader)?;
         if let Some(value) = select.as_ref() {
-            if value.superblocks() != bits::div_round_up(ones, SelectSupport::<Identity>::SUPERBLOCK_SIZE) {
-                return Err(Error::new(ErrorKind::InvalidData, "Invalid number of select superblocks"))
+            if value.superblocks()
+                != bits::div_round_up(ones, SelectSupport::<Identity>::SUPERBLOCK_SIZE)
+            {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid number of select superblocks",
+                ));
             }
         }
 
         let select_zero = Option::<SelectSupport<Complement>>::load(reader)?;
         if let Some(value) = select_zero.as_ref() {
-            if value.superblocks() != bits::div_round_up(data.len() - ones, SelectSupport::<Complement>::SUPERBLOCK_SIZE) {
-                return Err(Error::new(ErrorKind::InvalidData, "Invalid number of select_zero superblocks"))
+            if value.superblocks()
+                != bits::div_round_up(
+                    data.len() - ones,
+                    SelectSupport::<Complement>::SUPERBLOCK_SIZE,
+                )
+            {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid number of select_zero superblocks",
+                ));
             }
         }
 
         Ok(BitVector {
-            ones, data, rank, select, select_zero,
+            ones,
+            data,
+            rank,
+            select,
+            select_zero,
         })
     }
 
     fn size_in_elements(&self) -> usize {
-        self.ones.size_in_elements() +
-        self.data.size_in_elements() +
-        self.rank.size_in_elements() +
-        self.select.size_in_elements() +
-        self.select_zero.size_in_elements()
+        self.ones.size_in_elements()
+            + self.data.size_in_elements()
+            + self.rank.size_in_elements()
+            + self.select.size_in_elements()
+            + self.select_zero.size_in_elements()
     }
 }
 

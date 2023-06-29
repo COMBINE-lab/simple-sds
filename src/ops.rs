@@ -17,8 +17,8 @@
 //! * [`SelectZero`]: Select queries on the complement and iterators over unset bits.
 //! * [`PredSucc`]: Predecessor and successor queries.
 
-use std::iter::FusedIterator;
 use std::cmp;
+use std::iter::FusedIterator;
 
 #[cfg(test)]
 mod tests;
@@ -58,7 +58,7 @@ mod tests;
 ///     fn max_len(&self) -> usize {
 ///         usize::MAX
 ///     }
-/// } 
+/// }
 ///
 /// impl Resize for Example {
 ///     fn resize(&mut self, new_len: usize, value: Self::Item) {
@@ -354,7 +354,7 @@ impl<'a, VectorType: Access<'a>> FusedIterator for AccessIter<'a, VectorType> {}
 ///     fn max_len(&self) -> usize {
 ///         usize::MAX
 ///     }
-/// } 
+/// }
 ///
 /// impl Push for Example {
 ///     fn push(&mut self, value: Self::Item) {

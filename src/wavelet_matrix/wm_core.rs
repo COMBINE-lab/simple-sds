@@ -21,10 +21,10 @@
 //! > `bv[level].count_zeros() + bv[level].rank(i)`.
 
 use crate::bit_vector::BitVector;
-use crate::ops::{BitVec, Rank, Select, SelectZero, PredSucc};
-use crate::raw_vector::{RawVector, PushRaw};
-use crate::serialize::Serialize;
 use crate::bits;
+use crate::ops::{BitVec, PredSucc, Rank, Select, SelectZero};
+use crate::raw_vector::{PushRaw, RawVector};
+use crate::serialize::Serialize;
 
 use std::io::{Error, ErrorKind};
 use std::{cmp, io};
@@ -139,7 +139,12 @@ impl WMCore {
     /// * `first`: A position in the original vector.
     /// * `second`: A position in the original vector.
     /// * `value`: Value of an item.
-    pub fn map_down_with_two_positions(&self, first: usize, second: usize, value: u64) -> (usize, usize) {
+    pub fn map_down_with_two_positions(
+        &self,
+        first: usize,
+        second: usize,
+        value: u64,
+    ) -> (usize, usize) {
         let mut first = cmp::min(first, self.len());
         let mut second = cmp::min(second, self.len());
         for level in 0..self.width() {
@@ -245,17 +250,17 @@ macro_rules! wm_core_from {
                     source.clear();
                     source.extend(zeros);
                     source.extend(ones);
-        
+
                     // Create the bitvector for the current level.
                     levels.push(BitVector::from(raw_data));
                 }
 
-                let mut result = WMCore { levels, };
+                let mut result = WMCore { levels };
                 result.init_support();
                 result
             }
         }
-    }
+    };
 }
 
 wm_core_from!(u8);
@@ -293,16 +298,19 @@ impl Serialize for WMCore {
             match len {
                 Some(len) => {
                     if bv.len() != len {
-                        return Err(Error::new(ErrorKind::InvalidData, "Invalid bitvector length"));
+                        return Err(Error::new(
+                            ErrorKind::InvalidData,
+                            "Invalid bitvector length",
+                        ));
                     }
-                },
+                }
                 None => {
                     len = Some(bv.len());
-                },
+                }
             }
             levels.push(bv);
         }
-        let mut result = WMCore { levels, };
+        let mut result = WMCore { levels };
         result.init_support();
         Ok(result)
     }
@@ -335,14 +343,32 @@ mod tests {
 
         for i in 0..core.len() {
             let mapped = core.map_down_with(i, original[i]);
-            assert_eq!(reordered[mapped], original[i], "Invalid value at the mapped down position from {}", i);
-            assert_eq!(core.map_down(i), Some((mapped, original[i])), "The map down functions are inconsistent at {}", i);
+            assert_eq!(
+                reordered[mapped], original[i],
+                "Invalid value at the mapped down position from {}",
+                i
+            );
+            assert_eq!(
+                core.map_down(i),
+                Some((mapped, original[i])),
+                "The map down functions are inconsistent at {}",
+                i
+            );
         }
 
         for i in 0..core.len() {
             let mapped = core.map_up_with(i, reordered[i]).unwrap();
-            assert_eq!(original[mapped], reordered[i], "Invalid value at the mapped up position from {}", i);
-            assert_eq!(core.map_down_with(mapped, original[mapped]), i, "Did not get the original position after mapping up and down from {}", i);
+            assert_eq!(
+                original[mapped], reordered[i],
+                "Invalid value at the mapped up position from {}",
+                i
+            );
+            assert_eq!(
+                core.map_down_with(mapped, original[mapped]),
+                i,
+                "Did not get the original position after mapping up and down from {}",
+                i
+            );
         }
 
         let first = internal::random_queries(core.len(), core.len());
@@ -350,8 +376,20 @@ mod tests {
         let values = internal::random_vector(core.len(), core.width());
         for i in 0..core.len() {
             let mapped = core.map_down_with_two_positions(first[i], second[i], values[i]);
-            assert_eq!(mapped.0, core.map_down_with(first[i], values[i]), "Invalid first mapped position at {}, value {}", first[i], values[i]);
-            assert_eq!(mapped.1, core.map_down_with(second[i], values[i]), "Invalid second mapped position at {}, value {}", second[i], values[i]);
+            assert_eq!(
+                mapped.0,
+                core.map_down_with(first[i], values[i]),
+                "Invalid first mapped position at {}, value {}",
+                first[i],
+                values[i]
+            );
+            assert_eq!(
+                mapped.1,
+                core.map_down_with(second[i], values[i]),
+                "Invalid second mapped position at {}, value {}",
+                second[i],
+                values[i]
+            );
         }
     }
 

@@ -1,7 +1,7 @@
 //! The basic vector implementing the low-level functionality used by other vectors in the crate.
 
-use crate::serialize::{MappedSlice, MemoryMap, MemoryMapped, Serialize};
 use crate::bits;
+use crate::serialize::{MappedSlice, MemoryMap, MemoryMapped, Serialize};
 
 use std::fs::{File, OpenOptions};
 use std::io::{Error, ErrorKind, Seek, SeekFrom};
@@ -299,6 +299,14 @@ pub struct RawVector {
 }
 
 impl RawVector {
+    /// Returns the number of bits used to represent the struct in memory
+    pub fn num_bits(&self) -> usize {
+        let bytes = std::mem::size_of::<usize>()
+            + std::mem::size_of::<Vec<u64>>()
+            + self.data.capacity() * std::mem::size_of::<u64>();
+        bytes * 8
+    }
+
     /// Returns the length of the vector in bits.
     #[inline]
     pub fn len(&self) -> usize {
@@ -310,7 +318,6 @@ impl RawVector {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
     /// Returns the capacity of the vector in bits.
     #[inline]
     pub fn capacity(&self) -> usize {
@@ -370,9 +377,7 @@ impl RawVector {
     pub fn with_len(len: usize, value: bool) -> RawVector {
         let val = bits::filler_value(value);
         let data: Vec<u64> = vec![val; bits::bits_to_words(len)];
-        let mut result = RawVector {
-            len, data,
-        };
+        let mut result = RawVector { len, data };
         result.set_unused_bits(false);
         result
     }
@@ -458,7 +463,8 @@ impl RawVector {
         }
 
         // Use more space if necessary.
-        self.data.resize(bits::bits_to_words(new_len), bits::filler_value(value));
+        self.data
+            .resize(bits::bits_to_words(new_len), bits::filler_value(value));
         self.len = new_len;
         self.set_unused_bits(false);
     }
@@ -510,8 +516,7 @@ impl RawVector {
         if width > 0 {
             if value {
                 self.data[index] |= !bits::low_set(width);
-            }
-            else {
+            } else {
                 self.data[index] &= bits::low_set(width);
             }
         }
@@ -626,11 +631,12 @@ impl Serialize for RawVector {
         let len = usize::load(reader)?;
         let data = <Vec<u64> as Serialize>::load(reader)?;
         if bits::bits_to_words(len) != data.len() {
-            Err(Error::new(ErrorKind::InvalidData, "Bit length / word length mismatch"))
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Bit length / word length mismatch",
+            ))
         } else {
-            Ok(RawVector {
-                len, data,
-            })
+            Ok(RawVector { len, data })
         }
     }
 
@@ -728,7 +734,11 @@ impl RawVectorWriter {
     /// * `header`: Header of the parent structure (may be empty).
     pub fn new<P: AsRef<Path>>(filename: P, header: &mut Vec<u64>) -> io::Result<RawVectorWriter> {
         let mut options = OpenOptions::new();
-        let file = options.create(true).write(true).truncate(true).open(&filename)?;
+        let file = options
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&filename)?;
         // Allocate one extra word for overflow.
         let buf = RawVector::with_capacity(Self::DEFAULT_BUFFER_SIZE + bits::WORD_BITS);
         let mut name = PathBuf::new();
@@ -754,11 +764,19 @@ impl RawVectorWriter {
     /// * `filename`: Name of the file.
     /// * `header`: Header of the parent structure (may be empty).
     /// * `buf_len`: Buffer size in bits.
-    pub fn with_buf_len<P: AsRef<Path>>(filename: P, header: &mut Vec<u64>, buf_len: usize) -> io::Result<RawVectorWriter> {
+    pub fn with_buf_len<P: AsRef<Path>>(
+        filename: P,
+        header: &mut Vec<u64>,
+        buf_len: usize,
+    ) -> io::Result<RawVectorWriter> {
         // Buffer length must be a positive multiple of `bits::WORD_BITS`.
         let buf_len = cmp::max(bits::round_up_to_word_bits(buf_len), bits::WORD_BITS);
         let mut options = OpenOptions::new();
-        let file = options.create(true).write(true).truncate(true).open(&filename)?;
+        let file = options
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&filename)?;
         // Allocate one extra word for overflow.
         let buf = RawVector::with_capacity(buf_len + bits::WORD_BITS);
         let mut name = PathBuf::new();
@@ -791,7 +809,12 @@ impl RawVectorWriter {
             let mut overflow: (u64, usize) = (0, 0);
             if let FlushMode::Safe = mode {
                 if self.buf.len() > self.buf_len {
-                    unsafe { overflow = (self.buf.int(self.buf_len, self.buf.len() - self.buf_len), self.buf.len() - self.buf_len); }
+                    unsafe {
+                        overflow = (
+                            self.buf.int(self.buf_len, self.buf.len() - self.buf_len),
+                            self.buf.len() - self.buf_len,
+                        );
+                    }
                     self.buf.resize(self.buf_len, false);
                 }
             }
@@ -803,7 +826,9 @@ impl RawVectorWriter {
             // Push the overflow back to the buffer.
             if let FlushMode::Safe = mode {
                 if overflow.1 > 0 {
-                    unsafe { self.buf.push_int(overflow.0, overflow.1); }
+                    unsafe {
+                        self.buf.push_int(overflow.0, overflow.1);
+                    }
                 }
             }
         }
@@ -855,14 +880,16 @@ impl RawVectorWriter {
 
 impl PushRaw for RawVectorWriter {
     fn push_bit(&mut self, value: bool) {
-        self.buf.push_bit(value); self.len += 1;
+        self.buf.push_bit(value);
+        self.len += 1;
         if self.buf.len() >= self.buf_len {
             self.flush(FlushMode::Safe).unwrap();
         }
     }
 
     unsafe fn push_int(&mut self, value: u64, width: usize) {
-        self.buf.push_int(value, width); self.len += width;
+        self.buf.push_int(value, width);
+        self.len += width;
         if self.buf.len() >= self.buf_len {
             self.flush(FlushMode::Safe).unwrap();
         }
@@ -981,14 +1008,15 @@ impl<'a> AccessRaw for RawVectorMapper<'a> {
 impl<'a> MemoryMapped<'a> for RawVectorMapper<'a> {
     fn new(map: &'a MemoryMap, offset: usize) -> io::Result<Self> {
         if offset >= map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The starting offset is out of range"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The starting offset is out of range",
+            ));
         }
         let slice: &[u64] = map.as_ref();
         let len = slice[offset] as usize;
         let data = MappedSlice::new(map, offset + 1)?;
-        Ok(RawVectorMapper {
-            len, data,
-        })
+        Ok(RawVectorMapper { len, data })
     }
 
     fn map_offset(&self) -> usize {

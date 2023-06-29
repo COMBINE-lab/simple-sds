@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::{serialize, internal};
+use crate::{internal, serialize};
 
 //-----------------------------------------------------------------------------
 
@@ -9,7 +9,6 @@ fn empty_wm() {
     let truth: Vec<u64> = Vec::new();
     let wm = WaveletMatrix::from(truth.clone());
     internal::check_vector(&wm, &truth, 1);
-
 }
 
 macro_rules! test_wm_from {
@@ -18,12 +17,12 @@ macro_rules! test_wm_from {
         fn $name() {
             let width = 6;
             let truth = internal::random_vector(289, width);
-        
+
             let source: Vec<$t> = truth.iter().map(|x| *x as $t).collect();
             let wm = WaveletMatrix::from(source);
             internal::check_vector(&wm, &truth, width);
         }
-    }
+    };
 }
 
 test_wm_from!(wm_from_u8, u8);

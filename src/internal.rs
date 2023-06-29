@@ -1,8 +1,8 @@
 // Utility functions for tests.
 
-use crate::ops::{Vector, Access, VectorIndex};
-use crate::serialize::Serialize;
 use crate::bits;
+use crate::ops::{Access, Vector, VectorIndex};
+use crate::serialize::Serialize;
 
 use std::time::Duration;
 
@@ -22,7 +22,7 @@ pub fn random_vector(len: usize, width: usize) -> Vec<u64> {
 }
 
 // Returns `n` random values in `0..universe`.
-pub fn random_queries(n: usize, universe: usize) -> Vec<usize>{
+pub fn random_queries(n: usize, universe: usize) -> Vec<usize> {
     let mut result: Vec<usize> = Vec::with_capacity(n);
     let mut rng = rand::thread_rng();
     for _ in 0..n {
@@ -30,7 +30,7 @@ pub fn random_queries(n: usize, universe: usize) -> Vec<usize>{
         result.push(value % universe);
     }
     result
-} 
+}
 
 //-----------------------------------------------------------------------------
 
@@ -65,7 +65,11 @@ pub fn readable_size(bytes: usize) -> (f64, &'static str) {
 pub fn report_construction<T: Serialize>(object: &T, len: usize, duration: Duration) {
     let ns = (duration.as_nanos() as f64) / (len as f64);
     let (size, unit) = readable_size(object.size_in_bytes());
-    println!("Time:     {:.3} seconds ({:.1} ns/symbol)", duration.as_secs_f64(), ns);
+    println!(
+        "Time:     {:.3} seconds ({:.1} ns/symbol)",
+        duration.as_secs_f64(),
+        ns
+    );
     println!("Size:     {:.3} {}", size, unit);
     println!("");
 }
@@ -80,8 +84,15 @@ pub fn report_results(queries: usize, total: usize, len: usize, duration: Durati
     let average = (total as f64) / (queries as f64);
     let normalized = average / (len as f64);
     let ns = (duration.as_nanos() as f64) / (queries as f64);
-    println!("Time:     {:.3} seconds ({:.1} ns/query)", duration.as_secs_f64(), ns);
-    println!("Average:  {:.0} absolute, {:.6} normalized", average, normalized);
+    println!(
+        "Time:     {:.3} seconds ({:.1} ns/query)",
+        duration.as_secs_f64(),
+        ns
+    );
+    println!(
+        "Average:  {:.0} absolute, {:.6} normalized",
+        average, normalized
+    );
     println!("");
 }
 
@@ -125,10 +136,10 @@ pub fn report_memory_usage() {
         Ok(bytes) => {
             let (size, unit) = readable_size(bytes);
             println!("Peak memory usage: {:.3} {}", size, unit);
-        },
+        }
         Err(f) => {
             println!("{}", f);
-        },
+        }
     }
     println!("");
 }
@@ -140,7 +151,6 @@ pub fn check_vector<'a, T>(v: &'a T, truth: &[u64], width: usize)
 where
     T: Vector<Item = u64> + Access<'a> + Clone + IntoIterator<Item = u64>,
     <T as Access<'a>>::Iter: DoubleEndedIterator,
-
 {
     assert_eq!(v.len(), truth.len(), "Invalid vector length");
     assert_eq!(v.is_empty(), truth.is_empty(), "Invalid vector emptiness");
@@ -149,7 +159,10 @@ where
     for i in 0..v.len() {
         assert_eq!(v.get(i), truth[i], "Invalid value {}", i);
     }
-    assert!(v.iter().eq(truth.iter().cloned()), "Invalid iterator (forward)");
+    assert!(
+        v.iter().eq(truth.iter().cloned()),
+        "Invalid iterator (forward)"
+    );
 
     let mut index = v.len();
     let mut iter = v.iter();
@@ -163,16 +176,32 @@ where
     let mut limit = v.len();
     let mut iter = v.iter();
     while next < limit {
-        assert_eq!(iter.next(), Some(truth[next]), "Invalid value {} (forward, meet in middle)", next);
+        assert_eq!(
+            iter.next(),
+            Some(truth[next]),
+            "Invalid value {} (forward, meet in middle)",
+            next
+        );
         next += 1;
         if next >= limit {
             break;
         }
         limit -= 1;
-        assert_eq!(iter.next_back(), Some(truth[limit]), "Invalid value {} (backward, meet in middle", limit);
+        assert_eq!(
+            iter.next_back(),
+            Some(truth[limit]),
+            "Invalid value {} (backward, meet in middle",
+            limit
+        );
     }
-    assert!(iter.next().is_none(), "Got a value from iterator after meeting in the middle");
-    assert!(iter.next_back().is_none(), "Got a value (backward) from iterator after meeting in the middle");
+    assert!(
+        iter.next().is_none(),
+        "Got a value from iterator after meeting in the middle"
+    );
+    assert!(
+        iter.next_back().is_none(),
+        "Got a value (backward) from iterator after meeting in the middle"
+    );
 
     let copy: Vec<u64> = v.clone().into_iter().collect();
     assert_eq!(copy, *truth, "Invalid vector from into_iter()");
@@ -189,7 +218,12 @@ where
 {
     for value in 0..(1 << width) {
         let should_have = v.iter().any(|x| x == value);
-        assert_eq!(v.contains(value), should_have, "Invalid contains({})", value);
+        assert_eq!(
+            v.contains(value),
+            should_have,
+            "Invalid contains({})",
+            value
+        );
     }
 }
 
@@ -201,7 +235,13 @@ where
     for value in 0..(1 << width) {
         let mut count = 0;
         for index in 0..=v.len() {
-            assert_eq!(v.rank(index, value), count, "Invalid rank({}, {})", index, value);
+            assert_eq!(
+                v.rank(index, value),
+                count,
+                "Invalid rank({}, {})",
+                index,
+                value
+            );
             if index < v.len() && v.get(index) == value {
                 count += 1;
             }
@@ -218,9 +258,17 @@ where
         let result = v.inverse_select(i);
         assert!(result.is_some(), "No result for inverse_select({})", i);
         let result = result.unwrap();
-        assert_eq!(v.select(result.0, result.1), Some(i), "Invalid inverse_select({})", i);
+        assert_eq!(
+            v.select(result.0, result.1),
+            Some(i),
+            "Invalid inverse_select({})",
+            i
+        );
     }
-    assert!(v.inverse_select(v.len()).is_none(), "Got an inverse_select() result past the end");
+    assert!(
+        v.inverse_select(v.len()).is_none(),
+        "Got an inverse_select() result past the end"
+    );
 }
 
 // Test `value_iter`.
@@ -230,17 +278,32 @@ where
 {
     for value in 0..(1 << width) {
         let mut iter = v.value_iter(value);
-        assert_eq!(T::value_of(&iter), value, "Invalid value for value_iter({})", value);
+        assert_eq!(
+            T::value_of(&iter),
+            value,
+            "Invalid value for value_iter({})",
+            value
+        );
         let mut rank = 0;
         let mut index = 0;
         while index < v.len() {
             if v.get(index) == value {
-                assert_eq!(iter.next(), Some((rank, index)), "Invalid result of rank {} from value_iter({})", rank, value);
+                assert_eq!(
+                    iter.next(),
+                    Some((rank, index)),
+                    "Invalid result of rank {} from value_iter({})",
+                    rank,
+                    value
+                );
                 rank += 1;
             }
             index += 1;
         }
-        assert!(iter.next().is_none(), "Got a past-the-end result from value_iter({})", value);
+        assert!(
+            iter.next().is_none(),
+            "Got a past-the-end result from value_iter({})",
+            value
+        );
     }
 }
 
@@ -254,14 +317,36 @@ where
         let mut index = 0;
         while index < v.len() {
             if v.get(index) == value {
-                assert_eq!(v.select(rank, value), Some(index), "Invalid select({}, {})", rank, value);
-                assert_eq!(v.select_iter(rank, value).next(), Some((rank, index)), "Invalid select_iter({}, {})", rank, value);
+                assert_eq!(
+                    v.select(rank, value),
+                    Some(index),
+                    "Invalid select({}, {})",
+                    rank,
+                    value
+                );
+                assert_eq!(
+                    v.select_iter(rank, value).next(),
+                    Some((rank, index)),
+                    "Invalid select_iter({}, {})",
+                    rank,
+                    value
+                );
                 rank += 1;
             }
             index += 1;
         }
-        assert!(v.select(rank, value).is_none(), "Got a past-the-end result from select({}, {})", rank, value);
-        assert!(v.select_iter(rank, value).next().is_none(), "Got a past-the-end result from select_iter({}, {})", rank, value);
+        assert!(
+            v.select(rank, value).is_none(),
+            "Got a past-the-end result from select({}, {})",
+            rank,
+            value
+        );
+        assert!(
+            v.select_iter(rank, value).next().is_none(),
+            "Got a past-the-end result from select_iter({}, {})",
+            rank,
+            value
+        );
     }
 }
 
@@ -278,13 +363,37 @@ where
         // Try also querying at past-the-end position.
         for index in 0..=v.len() {
             if next.is_some() && index == next.unwrap().1 {
-                assert_eq!(v.predecessor(index, value).next(), next, "Invalid predecessor({}, {}) at occurrence", index, value);
-                assert_eq!(v.successor(index, value).next(), next, "Invalid successor({}, {}) at occurrence", index, value);
+                assert_eq!(
+                    v.predecessor(index, value).next(),
+                    next,
+                    "Invalid predecessor({}, {}) at occurrence",
+                    index,
+                    value
+                );
+                assert_eq!(
+                    v.successor(index, value).next(),
+                    next,
+                    "Invalid successor({}, {}) at occurrence",
+                    index,
+                    value
+                );
                 prev = next;
                 next = iter.next();
             } else {
-                assert_eq!(v.predecessor(index, value).next(), prev, "Invalid predecessor({}, {})", index, value);
-                assert_eq!(v.successor(index, value).next(), next, "Invalid successor({}, {})", index, value);
+                assert_eq!(
+                    v.predecessor(index, value).next(),
+                    prev,
+                    "Invalid predecessor({}, {})",
+                    index,
+                    value
+                );
+                assert_eq!(
+                    v.successor(index, value).next(),
+                    next,
+                    "Invalid successor({}, {})",
+                    index,
+                    value
+                );
             }
         }
     }

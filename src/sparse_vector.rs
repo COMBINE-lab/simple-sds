@@ -32,11 +32,11 @@
 //! Rank/select queries for unset bits do not work correctly with multisets.
 
 use crate::bit_vector::BitVector;
-use crate::int_vector::IntVector;
-use crate::ops::{Vector, Access, BitVec, Rank, Select, PredSucc, SelectZero};
-use crate::raw_vector::{RawVector, AccessRaw};
-use crate::serialize::Serialize;
 use crate::bits;
+use crate::int_vector::IntVector;
+use crate::ops::{Access, BitVec, PredSucc, Rank, Select, SelectZero, Vector};
+use crate::raw_vector::{AccessRaw, RawVector};
+use crate::serialize::Serialize;
 
 use std::convert::TryFrom;
 use std::io::{Error, ErrorKind};
@@ -173,7 +173,9 @@ impl SparseVector {
     pub fn copy_bit_vec<'a, T: BitVec<'a> + Select<'a>>(source: &'a T) -> SparseVector {
         let mut builder = SparseBuilder::new(source.len(), source.count_ones()).unwrap();
         for (_, index) in source.one_iter() {
-            unsafe { builder.set_unchecked(index); }
+            unsafe {
+                builder.set_unchecked(index);
+            }
         }
         SparseVector::try_from(builder).unwrap()
     }
@@ -199,10 +201,16 @@ impl SparseVector {
     ///     assert_eq!(value, source[index]);
     /// }
     /// ```
-    pub fn try_from_iter<T: Iterator<Item = usize> + DoubleEndedIterator + ExactSizeIterator>(iter: T) -> Result<SparseVector, &'static str> {
+    pub fn try_from_iter<T: Iterator<Item = usize> + DoubleEndedIterator + ExactSizeIterator>(
+        iter: T,
+    ) -> Result<SparseVector, &'static str> {
         let mut iter = iter;
         let (ones, _) = iter.size_hint();
-        let universe = if let Some(pos) = iter.next_back() { pos + 1 } else { 0 };
+        let universe = if let Some(pos) = iter.next_back() {
+            pos + 1
+        } else {
+            0
+        };
         let mut builder = SparseBuilder::multiset(universe, ones);
         for pos in iter {
             builder.try_set(pos)?;
@@ -237,7 +245,10 @@ impl SparseVector {
 
     // Get (rank, bitvector index) from the offsets in `high` and `low`.
     fn combine(&self, pos: Pos) -> (usize, usize) {
-        (pos.low, ((pos.high - pos.low) << self.low.width()) + (self.low.get(pos.low) as usize))
+        (
+            pos.low,
+            ((pos.high - pos.low) << self.low.width()) + (self.low.get(pos.low) as usize),
+        )
     }
 
     // Get the offsets in `high` and `low` for the set bit of the given rank.
@@ -252,17 +263,23 @@ impl SparseVector {
     // unset bit if no such values exist.
     fn lower_bound(&self, high_part: usize) -> Pos {
         if high_part == 0 {
-            Pos { high: 0, low: 0, }
+            Pos { high: 0, low: 0 }
         } else {
             let high_offset = self.high.select_zero(high_part - 1).unwrap() + 1;
-            Pos { high: high_offset, low: high_offset - high_part, }
+            Pos {
+                high: high_offset,
+                low: high_offset - high_part,
+            }
         }
     }
 
     // Get a `Pos` that points to the unset bit after the values with the this high part.
     fn upper_bound(&self, high_part: usize) -> Pos {
         let high_offset = self.high.select_zero(high_part).unwrap();
-        Pos { high: high_offset, low: high_offset - high_part, }
+        Pos {
+            high: high_offset,
+            low: high_offset - high_part,
+        }
     }
 
     // Returns (run rank, one_iter past the run) for the run of 0s that contains
@@ -456,7 +473,11 @@ impl SparseBuilder {
 
     // Returns `high.len()` for the given `universe` and `low.width()`.
     fn get_buckets(universe: usize, low_width: usize) -> usize {
-        let mut buckets = if low_width < bits::WORD_BITS { universe >> low_width } else { 0 };
+        let mut buckets = if low_width < bits::WORD_BITS {
+            universe >> low_width
+        } else {
+            0
+        };
         if universe & (bits::low_set(low_width) as usize) != 0 {
             buckets += 1;
         }
@@ -513,7 +534,8 @@ impl SparseBuilder {
         let parts = self.data.split(index);
         self.high.set_bit(parts.high + self.len, true);
         self.data.low.set(self.len, parts.low as u64);
-        self.len += 1; self.next = index + self.increment;
+        self.len += 1;
+        self.next = index + self.increment;
     }
 
     /// Tries to set the specified bit in the bitvector.
@@ -533,7 +555,9 @@ impl SparseBuilder {
         if index >= self.universe() {
             return Err("Index is larger than universe size");
         }
-        unsafe { self.set_unchecked(index); }
+        unsafe {
+            self.set_unchecked(index);
+        }
         Ok(())
     }
 }
@@ -610,11 +634,11 @@ impl<'a> Iterator for Iter<'a> {
                     self.next += 1;
                     Some(false)
                 }
-            },
+            }
             None => {
                 self.next += 1;
                 Some(false)
-            },
+            }
         }
     }
 
@@ -647,7 +671,7 @@ impl<'a> DoubleEndedIterator for Iter<'a> {
                 } else {
                     Some(false)
                 }
-            },
+            }
             None => Some(false),
         }
     }
@@ -694,7 +718,8 @@ impl<'a> BitVec<'a> for SparseVector {
             if low >= parts.low {
                 return low == parts.low;
             }
-            pos.high += 1; pos.low += 1;
+            pos.high += 1;
+            pos.low += 1;
         }
 
         false
@@ -742,7 +767,8 @@ impl<'a> Rank<'a> for SparseVector {
         if pos.low == 0 {
             return 0;
         }
-        pos.high -= 1; pos.low -= 1;
+        pos.high -= 1;
+        pos.low -= 1;
 
         // Iterate backward over the values with the same high part until we find
         // as value lower than `index` or we run out of such values.
@@ -750,7 +776,8 @@ impl<'a> Rank<'a> for SparseVector {
             if pos.low == 0 {
                 return 0;
             }
-            pos.high -= 1; pos.low -= 1;
+            pos.high -= 1;
+            pos.low -= 1;
         }
 
         pos.low + 1
@@ -808,8 +835,14 @@ impl<'a> OneIter<'a> {
     fn empty_iter(parent: &'a SparseVector) -> OneIter<'a> {
         OneIter {
             parent,
-            next: Pos { high: parent.high.len(), low: parent.low.len(), },
-            limit: Pos { high: parent.high.len(), low: parent.low.len(), },
+            next: Pos {
+                high: parent.high.len(),
+                low: parent.low.len(),
+            },
+            limit: Pos {
+                high: parent.high.len(),
+                low: parent.low.len(),
+            },
         }
     }
 }
@@ -825,7 +858,8 @@ impl<'a> Iterator for OneIter<'a> {
                 self.next.high += 1;
             }
             let result = self.parent.combine(self.next);
-            self.next.high += 1; self.next.low += 1;
+            self.next.high += 1;
+            self.next.low += 1;
             Some(result)
         }
     }
@@ -842,7 +876,8 @@ impl<'a> DoubleEndedIterator for OneIter<'a> {
         if self.next.low >= self.limit.low {
             None
         } else {
-            self.limit.high -= 1; self.limit.low -= 1;
+            self.limit.high -= 1;
+            self.limit.low -= 1;
             while !self.parent.high.get(self.limit.high) {
                 self.limit.high -= 1;
             }
@@ -918,7 +953,11 @@ impl<'a> ZeroIter<'a> {
     fn next_run(&mut self) {
         while self.next.1 >= self.one_pos {
             self.next.1 = self.one_pos + 1;
-            self.one_pos = if let Some((_, pos)) = self.iter.next() { pos } else { self.limit.1 };
+            self.one_pos = if let Some((_, pos)) = self.iter.next() {
+                pos
+            } else {
+                self.limit.1
+            };
         }
     }
 }
@@ -965,27 +1004,33 @@ impl<'a> Select<'a> for SparseVector {
     fn one_iter(&'a self) -> Self::OneIter {
         Self::OneIter {
             parent: self,
-            next: Pos { high: 0, low: 0, },
-            limit: Pos { high: self.high.len(), low: self.low.len(), },
+            next: Pos { high: 0, low: 0 },
+            limit: Pos {
+                high: self.high.len(),
+                low: self.low.len(),
+            },
         }
     }
 
     fn select(&'a self, rank: usize) -> Option<usize> {
-         if rank >= self.count_ones() {
-             None
+        if rank >= self.count_ones() {
+            None
         } else {
             Some(self.combine(self.pos(rank)).1)
         }
     }
 
     fn select_iter(&'a self, rank: usize) -> Self::OneIter {
-         if rank >= self.count_ones() {
-             Self::OneIter::empty_iter(self)
+        if rank >= self.count_ones() {
+            Self::OneIter::empty_iter(self)
         } else {
             Self::OneIter {
                 parent: self,
                 next: self.pos(rank),
-                limit: Pos { high: self.high.len(), low: self.low.len(), },
+                limit: Pos {
+                    high: self.high.len(),
+                    low: self.low.len(),
+                },
             }
         }
     }
@@ -1004,7 +1049,11 @@ impl<'a> SelectZero<'a> for SparseVector {
 
     fn zero_iter(&'a self) -> Self::ZeroIter {
         let mut iter = self.one_iter();
-        let one_pos = if let Some((_, pos)) = iter.next() { pos } else { self.len() };
+        let one_pos = if let Some((_, pos)) = iter.next() {
+            pos
+        } else {
+            self.len()
+        };
         ZeroIter {
             iter,
             one_pos,
@@ -1026,7 +1075,11 @@ impl<'a> SelectZero<'a> for SparseVector {
             return Self::ZeroIter::empty_iter(self);
         }
         let (run_rank, mut iter) = self.find_zero_run(rank);
-        let one_pos = if let Some((_, pos)) = iter.next() { pos } else { self.len() };
+        let one_pos = if let Some((_, pos)) = iter.next() {
+            pos
+        } else {
+            self.len()
+        };
         ZeroIter {
             iter,
             one_pos,
@@ -1058,7 +1111,8 @@ impl<'a> PredSucc<'a> for SparseVector {
         if pos.low == 0 {
             return Self::OneIter::empty_iter(self);
         }
-        pos.high -= 1; pos.low -= 1;
+        pos.high -= 1;
+        pos.low -= 1;
 
         // Iterate backward over the values with the same high part until we find
         // a value no greater than `value` or we run out of such values.
@@ -1066,7 +1120,8 @@ impl<'a> PredSucc<'a> for SparseVector {
             if pos.low == 0 {
                 return Self::OneIter::empty_iter(self);
             }
-            pos.high -= 1; pos.low -= 1;
+            pos.high -= 1;
+            pos.low -= 1;
         }
 
         // The predecessor has a lower high part, so we continue iterating until we find it.
@@ -1077,7 +1132,10 @@ impl<'a> PredSucc<'a> for SparseVector {
         Self::OneIter {
             parent: self,
             next: pos,
-            limit: Pos { high: self.high.len(), low: self.low.len(), },
+            limit: Pos {
+                high: self.high.len(),
+                low: self.low.len(),
+            },
         }
     }
 
@@ -1097,10 +1155,14 @@ impl<'a> PredSucc<'a> for SparseVector {
                 return Self::OneIter {
                     parent: self,
                     next: pos,
-                    limit: Pos { high: self.high.len(), low: self.low.len(), },
+                    limit: Pos {
+                        high: self.high.len(),
+                        low: self.low.len(),
+                    },
                 };
             }
-            pos.high += 1; pos.low += 1;
+            pos.high += 1;
+            pos.low += 1;
         }
 
         // The successor has a greater high part, so we continue iterating until we find it.
@@ -1109,7 +1171,10 @@ impl<'a> PredSucc<'a> for SparseVector {
                 return Self::OneIter {
                     parent: self,
                     next: pos,
-                    limit: Pos { high: self.high.len(), low: self.low.len(), },
+                    limit: Pos {
+                        high: self.high.len(),
+                        low: self.low.len(),
+                    },
                 };
             }
             pos.high += 1;
@@ -1145,22 +1210,24 @@ impl Serialize for SparseVector {
 
         // Sanity checks.
         if low.len() != high.count_ones() {
-            return Err(Error::new(ErrorKind::InvalidData, "Inconsistent number of set bits"));
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Inconsistent number of set bits",
+            ));
         }
-        if high.len() != low.len() + SparseBuilder::get_buckets(len, low.width()){
-            return Err(Error::new(ErrorKind::InvalidData, "Invalid number of buckets"));
+        if high.len() != low.len() + SparseBuilder::get_buckets(len, low.width()) {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Invalid number of buckets",
+            ));
         }
 
-        let result = SparseVector {
-            len, high, low,
-        };
+        let result = SparseVector { len, high, low };
         Ok(result)
     }
 
     fn size_in_elements(&self) -> usize {
-        self.len.size_in_elements() +
-        self.high.size_in_elements() +
-        self.low.size_in_elements()
+        self.len.size_in_elements() + self.high.size_in_elements() + self.low.size_in_elements()
     }
 }
 

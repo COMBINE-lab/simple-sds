@@ -1,11 +1,11 @@
 use super::*;
 
-use crate::ops::{Vector, Resize, Pack, Access, Push, Pop};
-use crate::serialize::{Serialize, MappingMode};
-use crate::{serialize, internal};
+use crate::ops::{Access, Pack, Pop, Push, Resize, Vector};
+use crate::serialize::{MappingMode, Serialize};
+use crate::{internal, serialize};
 
-use std::fs::OpenOptions;
 use std::fs;
+use std::fs::OpenOptions;
 
 //-----------------------------------------------------------------------------
 
@@ -24,19 +24,52 @@ fn empty_vector() {
     assert!(empty.is_empty(), "Created a non-empty empty vector");
     assert_eq!(empty.len(), 0, "Nonzero length for an empty vector");
     assert_eq!(empty.width(), 64, "Invalid width for an empty vector");
-    assert_eq!(empty.capacity(), 0, "Reserved unnecessary memory for an empty vector");
+    assert_eq!(
+        empty.capacity(),
+        0,
+        "Reserved unnecessary memory for an empty vector"
+    );
 
     let with_width = IntVector::new(13).unwrap();
-    assert!(with_width.is_empty(), "Created a non-empty empty vector with a specified width");
-    assert_eq!(with_width.width(), 13, "Invalid width for an empty vector with a specified width");
-    assert_eq!(with_width.capacity(), 0, "Reserved unnecessary memory for an empty vector with a specified width");
-    assert_eq!(with_width.max_len(), usize::MAX / 13, "Invalid maximum length");
+    assert!(
+        with_width.is_empty(),
+        "Created a non-empty empty vector with a specified width"
+    );
+    assert_eq!(
+        with_width.width(),
+        13,
+        "Invalid width for an empty vector with a specified width"
+    );
+    assert_eq!(
+        with_width.capacity(),
+        0,
+        "Reserved unnecessary memory for an empty vector with a specified width"
+    );
+    assert_eq!(
+        with_width.max_len(),
+        usize::MAX / 13,
+        "Invalid maximum length"
+    );
 
     let with_capacity = IntVector::with_capacity(137, 13).unwrap();
-    assert!(with_capacity.is_empty(), "Created a non-empty vector by specifying capacity");
-    assert_eq!(with_width.width(), 13, "Invalid width for an empty vector with a specified capacity");
-    assert!(with_capacity.capacity() >= 137, "Vector capacity is lower than specified");
-    assert_eq!(with_capacity.max_len(), usize::MAX / 13, "Invalid maximum length");
+    assert!(
+        with_capacity.is_empty(),
+        "Created a non-empty vector by specifying capacity"
+    );
+    assert_eq!(
+        with_width.width(),
+        13,
+        "Invalid width for an empty vector with a specified capacity"
+    );
+    assert!(
+        with_capacity.capacity() >= 137,
+        "Vector capacity is lower than specified"
+    );
+    assert_eq!(
+        with_capacity.max_len(),
+        usize::MAX / 13,
+        "Invalid maximum length"
+    );
 }
 
 #[test]
@@ -56,7 +89,10 @@ fn initialization_vs_push() {
     for _ in 0..137 {
         pushed.push(123);
     }
-    assert_eq!(with_len, pushed, "Initializing with and pushing values yield different vectors");
+    assert_eq!(
+        with_len, pushed,
+        "Initializing with and pushing values yield different vectors"
+    );
 }
 
 #[test]
@@ -76,7 +112,10 @@ fn initialization_vs_resize() {
         popped.pop();
     }
     popped.resize(137, 123);
-    assert_eq!(popped, initialized, "Popped vector is invalid after extension");
+    assert_eq!(
+        popped, initialized,
+        "Popped vector is invalid after extension"
+    );
 }
 
 #[test]
@@ -85,15 +124,22 @@ fn reserving_capacity() {
     let copy = original.clone();
     original.reserve(31 + original.capacity() - original.len());
 
-    assert!(original.capacity() >= 137 + 31, "Reserving additional capacity failed");
-    assert_eq!(original, copy, "Reserving additional capacity changed the vector");
+    assert!(
+        original.capacity() >= 137 + 31,
+        "Reserving additional capacity failed"
+    );
+    assert_eq!(
+        original, copy,
+        "Reserving additional capacity changed the vector"
+    );
 }
 
 #[test]
 fn push_pop_from_iter() {
     let mut correct: Vec<u16> = Vec::new();
     for i in 0..64 {
-        correct.push(i); correct.push(i * (i + 1));
+        correct.push(i);
+        correct.push(i * (i + 1));
     }
 
     let mut v = IntVector::new(16).unwrap();
@@ -121,17 +167,34 @@ fn push_pop_from_iter() {
 fn set_get() {
     let mut v = IntVector::with_len(128, 13, 0).unwrap();
     for i in 0..64 {
-        v.set(2 * i, i as u64); v.set(2 * i + 1, (i * (i + 1)) as u64);
+        v.set(2 * i, i as u64);
+        v.set(2 * i + 1, (i * (i + 1)) as u64);
     }
     for i in 0..64 {
         assert_eq!(v.get(2 * i), i as u64, "Invalid integer [{}].0", i);
-        assert_eq!(v.get(2 * i + 1), (i * (i + 1)) as u64, "Invalid integer [{}].1", i);
+        assert_eq!(
+            v.get(2 * i + 1),
+            (i * (i + 1)) as u64,
+            "Invalid integer [{}].1",
+            i
+        );
     }
 
     let raw = RawVector::from(v.clone());
-    assert_eq!(raw.len(), v.len() * v.width(), "Invalid length for the extracted RawVector");
+    assert_eq!(
+        raw.len(),
+        v.len() * v.width(),
+        "Invalid length for the extracted RawVector"
+    );
     for i in 0..v.len() {
-        unsafe { assert_eq!(raw.int(i * v.width(), v.width()), v.get(i), "Invalid value {} in the RawVector", i); }
+        unsafe {
+            assert_eq!(
+                raw.int(i * v.width(), v.width()),
+                v.get(i),
+                "Invalid value {} in the RawVector",
+                i
+            );
+        }
     }
 }
 
@@ -147,10 +210,12 @@ fn extend() {
     let first: Vec<u64> = vec![1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
     let second: Vec<u64> = vec![1, 2, 4, 8, 16, 32, 64, 128];
     let mut correct: Vec<u64> = Vec::new();
-    correct.extend(first.iter().cloned()); correct.extend(second.iter().cloned());
+    correct.extend(first.iter().cloned());
+    correct.extend(second.iter().cloned());
 
     let mut int_vec = IntVector::new(8).unwrap();
-    int_vec.extend(first); int_vec.extend(second);
+    int_vec.extend(first);
+    int_vec.extend(second);
     internal::check_vector(&int_vec, &correct, 8);
 }
 
@@ -176,7 +241,12 @@ fn serialize() {
 fn invalid_data() {
     let filename = serialize::temp_file_name("int-vector-invalid-data");
     let mut options = OpenOptions::new();
-    let mut file = options.create(true).write(true).truncate(true).open(&filename).unwrap();
+    let mut file = options
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&filename)
+        .unwrap();
 
     // 13 values of 20 bits each will take 260 bits, but data length is 240 bits
     let len: usize = 13;
@@ -188,9 +258,26 @@ fn invalid_data() {
     drop(file);
 
     let result: io::Result<IntVector> = serialize::load_from(&filename);
-    assert_eq!(result.map_err(|e| e.kind()), Err(ErrorKind::InvalidData), "Expected ErrorKind::InvalidData");
+    assert_eq!(
+        result.map_err(|e| e.kind()),
+        Err(ErrorKind::InvalidData),
+        "Expected ErrorKind::InvalidData"
+    );
 
     fs::remove_file(&filename).unwrap();
+}
+
+#[test]
+fn num_bits() {
+    let len = 1000;
+    let width = 3;
+    let v = 0;
+    let iv = IntVector::with_len(len, width, v).unwrap();
+
+    // 3000 / 512
+    let bytes = ((len * width) / 8) + 1;
+    let bytes = bytes + std::mem::size_of::<IntVector>();
+    assert_eq!(iv.num_bits(), bytes * 8)
 }
 
 //-----------------------------------------------------------------------------
@@ -207,9 +294,19 @@ fn empty_writer() {
     v.close().unwrap();
 
     let mut w = IntVectorWriter::with_buf_len(&second, 13, 1024).unwrap();
-    assert!(w.is_empty(), "Created a non-empty empty writer with custom buffer size");
-    assert!(w.is_open(), "Newly created writer is not open with custom buffer size");
-    assert_eq!(w.filename(), second, "Invalid file name with custom buffer size");
+    assert!(
+        w.is_empty(),
+        "Created a non-empty empty writer with custom buffer size"
+    );
+    assert!(
+        w.is_open(),
+        "Newly created writer is not open with custom buffer size"
+    );
+    assert_eq!(
+        w.filename(),
+        second,
+        "Invalid file name with custom buffer size"
+    );
     w.close().unwrap();
 
     fs::remove_file(&first).unwrap();
@@ -247,16 +344,25 @@ fn extend_writer() {
     let first: Vec<u64> = vec![1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
     let second: Vec<u64> = vec![1, 2, 4, 8, 16, 32, 64, 128];
     let mut correct: Vec<u64> = Vec::new();
-    correct.extend(first.iter().cloned()); correct.extend(second.iter().cloned());
+    correct.extend(first.iter().cloned());
+    correct.extend(second.iter().cloned());
 
     let mut writer = IntVectorWriter::with_buf_len(&filename, 8, 32).unwrap();
-    writer.extend(first); writer.extend(second);
-    assert_eq!(writer.len(), correct.len(), "Invalid length for the extended writer");
+    writer.extend(first);
+    writer.extend(second);
+    assert_eq!(
+        writer.len(),
+        correct.len(),
+        "Invalid length for the extended writer"
+    );
     writer.close().unwrap();
 
     let int_vec: IntVector = serialize::load_from(&filename).unwrap();
     let collected: Vec<u64> = int_vec.into_iter().collect();
-    assert_eq!(collected, correct, "Invalid values collected from the writer");
+    assert_eq!(
+        collected, correct,
+        "Invalid values collected from the writer"
+    );
 
     fs::remove_file(&filename).unwrap();
 }
@@ -291,7 +397,11 @@ fn large_writer() {
 fn check_mapper(mapper: &IntVectorMapper, truth: &IntVector) {
     assert!(!mapper.is_mutable(), "Read-only mapper is mutable");
     assert_eq!(mapper.len(), truth.len(), "Invalid mapper length");
-    assert_eq!(mapper.is_empty(), truth.is_empty(), "Invalid mapper emptiness");
+    assert_eq!(
+        mapper.is_empty(),
+        truth.is_empty(),
+        "Invalid mapper emptiness"
+    );
     assert_eq!(mapper.width(), truth.width(), "Invalid mapper width");
 
     for i in 0..mapper.len() {
@@ -303,7 +413,12 @@ fn check_mapper(mapper: &IntVectorMapper, truth: &IntVector) {
     let mut iter = mapper.iter();
     while let Some(value) = iter.next_back() {
         index -= 1;
-        assert_eq!(value, truth.get(index), "Invalid value {} when iterating backwards", index);
+        assert_eq!(
+            value,
+            truth.get(index),
+            "Invalid value {} when iterating backwards",
+            index
+        );
     }
 }
 
@@ -317,7 +432,8 @@ fn empty_mapper() {
     let mapper = IntVectorMapper::new(&map, 0).unwrap();
     check_mapper(&mapper, &truth);
 
-    drop(mapper); drop(map);
+    drop(mapper);
+    drop(map);
     fs::remove_file(&filename).unwrap();
 }
 
@@ -331,7 +447,8 @@ fn non_empty_mapper() {
     let mapper = IntVectorMapper::new(&map, 0).unwrap();
     check_mapper(&mapper, &truth);
 
-    drop(mapper); drop(map);
+    drop(mapper);
+    drop(map);
     fs::remove_file(&filename).unwrap();
 }
 
@@ -342,7 +459,12 @@ fn mapper_offset() {
     let truth = random_int_vector(251, width);
 
     let mut options = OpenOptions::new();
-    let mut file = options.create(true).write(true).truncate(true).open(&filename).unwrap();
+    let mut file = options
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&filename)
+        .unwrap();
     width.serialize(&mut file).unwrap(); // One element of padding.
     truth.serialize(&mut file).unwrap();
     drop(file);
@@ -351,7 +473,8 @@ fn mapper_offset() {
     let mapper = IntVectorMapper::new(&map, 1).unwrap();
     check_mapper(&mapper, &truth);
 
-    drop(mapper); drop(map);
+    drop(mapper);
+    drop(map);
     fs::remove_file(&filename).unwrap();
 }
 
@@ -366,7 +489,8 @@ fn large_mapper() {
     let mapper = IntVectorMapper::new(&map, 0).unwrap();
     check_mapper(&mapper, &truth);
 
-    drop(mapper); drop(map);
+    drop(mapper);
+    drop(map);
     fs::remove_file(&filename).unwrap();
 }
 

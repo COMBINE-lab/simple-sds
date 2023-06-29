@@ -1,14 +1,14 @@
 //! A bit-packed integer vector storing fixed-width integers.
 
-use crate::ops::{Vector, Resize, Pack, Access, AccessIter, Push, Pop};
-use crate::raw_vector::{RawVector, RawVectorMapper, RawVectorWriter, AccessRaw, PushRaw, PopRaw};
-use crate::serialize::{MemoryMap, MemoryMapped, Serialize};
 use crate::bits;
+use crate::ops::{Access, AccessIter, Pack, Pop, Push, Resize, Vector};
+use crate::raw_vector::{AccessRaw, PopRaw, PushRaw, RawVector, RawVectorMapper, RawVectorWriter};
+use crate::serialize::{MemoryMap, MemoryMapped, Serialize};
 
-use std::io::{Error, ErrorKind};
-use std::iter::{FusedIterator, FromIterator};
-use std::path::Path;
 use std::io;
+use std::io::{Error, ErrorKind};
+use std::iter::{FromIterator, FusedIterator};
+use std::path::Path;
 
 #[cfg(test)]
 mod tests;
@@ -40,8 +40,12 @@ pub struct IntVector {
 }
 
 impl IntVector {
+    pub fn num_bits(&self) -> usize {
+        std::mem::size_of::<usize>() * 2 * 8 + self.data.num_bits()
+    }
+
     /// Creates an empty vector with specified width.
-    /// 
+    ///
     /// Returns [`Err`] if the width is invalid.
     ///
     /// # Examples
@@ -57,8 +61,7 @@ impl IntVector {
     pub fn new(width: usize) -> Result<IntVector, &'static str> {
         if width == 0 || width > bits::WORD_BITS {
             Err("Integer width must be 1 to 64 bits")
-        }
-        else {
+        } else {
             Ok(IntVector {
                 len: 0,
                 width,
@@ -68,7 +71,7 @@ impl IntVector {
     }
 
     /// Creates an initialized vector of specified length and width.
-    /// 
+    ///
     /// Returns [`Err`] if the width is invalid.
     ///
     /// # Arguments
@@ -100,11 +103,11 @@ impl IntVector {
         }
         let mut data = RawVector::with_capacity(len * width);
         for _ in 0..len {
-            unsafe { data.push_int(value, width); }
+            unsafe {
+                data.push_int(value, width);
+            }
         }
-        Ok(IntVector {
-            len, width, data,
-        })
+        Ok(IntVector { len, width, data })
     }
 
     /// Creates an empty vector with enough capacity for at least the specified number of items of specified width.
@@ -167,9 +170,7 @@ impl IntVector {
 
     pub fn from_parts(len: usize, width: usize, data: RawVector) -> Self {
         assert!((len * width) <= data.len());
-        Self {
-            len, width, data
-        }
+        Self { len, width, data }
     }
 }
 
@@ -202,11 +203,11 @@ impl Resize for IntVector {
                 while self.len() < new_len {
                     self.push(value);
                 }
-            },
+            }
             new_len if new_len < self.len() => {
                 self.data.resize(new_len * self.width(), false);
                 self.len = new_len;
-            },
+            }
             _ => (),
         }
     }
@@ -237,7 +238,9 @@ impl Pack for IntVector {
         }
         let mut new_data = RawVector::with_capacity(self.len() * new_width);
         for value in self.iter() {
-            unsafe { new_data.push_int(value, new_width); }
+            unsafe {
+                new_data.push_int(value, new_width);
+            }
         }
         self.width = new_width;
         self.data = new_data;
@@ -265,16 +268,20 @@ impl<'a> Access<'a> for IntVector {
     #[inline]
     fn set(&mut self, index: usize, value: <Self as Vector>::Item) {
         assert!(index < self.len(), "Index is out of bounds");
-        unsafe { self.data.set_int(index * self.width(), value, self.width()); }
+        unsafe {
+            self.data.set_int(index * self.width(), value, self.width());
+        }
     }
 }
 
 impl Push for IntVector {
     #[inline]
     fn push(&mut self, value: <Self as Vector>::Item) {
-        unsafe { self.data.push_int(value, self.width()); }
+        unsafe {
+            self.data.push_int(value, self.width());
+        }
         self.len += 1;
-    }    
+    }
 }
 
 impl Pop for IntVector {
@@ -284,7 +291,7 @@ impl Pop for IntVector {
             self.len -= 1;
         }
         unsafe { self.data.pop_int(self.width()) }
-    }    
+    }
 }
 
 impl Serialize for IntVector {
@@ -305,12 +312,12 @@ impl Serialize for IntVector {
         let width = usize::load(reader)?;
         let data = RawVector::load(reader)?;
         if len * width != data.len() {
-            Err(Error::new(ErrorKind::InvalidData, "Data length does not match len * width"))
-        }
-        else {
-            Ok(IntVector {
-                len, width, data,
-            })
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Data length does not match len * width",
+            ))
+        } else {
+            Ok(IntVector { len, width, data })
         }
     }
 
@@ -452,7 +459,10 @@ impl IntVectorWriter {
     /// Any I/O errors will be passed through.
     pub fn new<P: AsRef<Path>>(filename: P, width: usize) -> io::Result<IntVectorWriter> {
         if width == 0 || width > bits::WORD_BITS {
-            return Err(Error::new(ErrorKind::Other, "Integer width must be 1 to 64 bits"));
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Integer width must be 1 to 64 bits",
+            ));
         }
         // The header will contain `len` and `width`.
         let mut header: Vec<u64> = vec![0, 0];
@@ -484,9 +494,16 @@ impl IntVectorWriter {
     /// # Panics
     ///
     /// May panic if buffer length would exceed the maximum length.
-    pub fn with_buf_len<P: AsRef<Path>>(filename: P, width: usize, buf_len: usize) -> io::Result<IntVectorWriter> {
+    pub fn with_buf_len<P: AsRef<Path>>(
+        filename: P,
+        width: usize,
+        buf_len: usize,
+    ) -> io::Result<IntVectorWriter> {
         if width == 0 || width > bits::WORD_BITS {
-            return Err(Error::new(ErrorKind::Other, "Integer width must be 1 to 64 bits"));
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Integer width must be 1 to 64 bits",
+            ));
         }
         // The header will contain `len` and `width`.
         let mut header: Vec<u64> = vec![0, 0];
@@ -546,7 +563,9 @@ impl Vector for IntVectorWriter {
 impl Push for IntVectorWriter {
     #[inline]
     fn push(&mut self, value: <Self as Vector>::Item) {
-        unsafe { self.writer.push_int(value, self.width()); }
+        unsafe {
+            self.writer.push_int(value, self.width());
+        }
         self.len += 1;
     }
 }
@@ -630,15 +649,16 @@ impl<'a> Access<'a> for IntVectorMapper<'a> {
 impl<'a> MemoryMapped<'a> for IntVectorMapper<'a> {
     fn new(map: &'a MemoryMap, offset: usize) -> io::Result<Self> {
         if offset + 1 >= map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The starting offset is out of range"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The starting offset is out of range",
+            ));
         }
         let slice: &[u64] = map.as_ref();
         let len = slice[offset] as usize;
         let width = slice[offset + 1] as usize;
         let data = RawVectorMapper::new(map, offset + 2)?;
-        Ok(IntVectorMapper {
-            len, width, data,
-        })
+        Ok(IntVectorMapper { len, width, data })
     }
 
     fn map_offset(&self) -> usize {
@@ -695,7 +715,7 @@ macro_rules! from_extend_int_vector {
                 }
             }
         }
-    }
+    };
 }
 
 from_extend_int_vector!(u8, 8);

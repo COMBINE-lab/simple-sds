@@ -187,7 +187,8 @@ impl<V: Serializable> Serialize for V {
 
     fn serialize_body<T: Write>(&self, writer: &mut T) -> io::Result<()> {
         unsafe {
-            let buf: &[u8] = slice::from_raw_parts(self as *const Self as *const u8, mem::size_of::<Self>());
+            let buf: &[u8] =
+                slice::from_raw_parts(self as *const Self as *const u8, mem::size_of::<Self>());
             writer.write_all(buf)?;
         }
         Ok(())
@@ -196,7 +197,10 @@ impl<V: Serializable> Serialize for V {
     fn load<T: Read>(reader: &mut T) -> io::Result<Self> {
         let mut value = Self::default();
         unsafe {
-            let buf: &mut [u8] = slice::from_raw_parts_mut(&mut value as *mut Self as *mut u8, mem::size_of::<Self>());
+            let buf: &mut [u8] = slice::from_raw_parts_mut(
+                &mut value as *mut Self as *mut u8,
+                mem::size_of::<Self>(),
+            );
             reader.read_exact(buf)?;
         }
         Ok(value)
@@ -216,7 +220,8 @@ impl<V: Serializable> Serialize for Vec<V> {
 
     fn serialize_body<T: Write>(&self, writer: &mut T) -> io::Result<()> {
         unsafe {
-            let buf: &[u8] = slice::from_raw_parts(self.as_ptr() as *const u8, self.len() * mem::size_of::<V>());
+            let buf: &[u8] =
+                slice::from_raw_parts(self.as_ptr() as *const u8, self.len() * mem::size_of::<V>());
             writer.write_all(buf)?;
         }
         Ok(())
@@ -227,7 +232,10 @@ impl<V: Serializable> Serialize for Vec<V> {
         let mut value: Vec<V> = Vec::with_capacity(size);
 
         unsafe {
-            let buf: &mut [u8] = slice::from_raw_parts_mut(value.as_mut_ptr() as *mut u8, size * mem::size_of::<V>());
+            let buf: &mut [u8] = slice::from_raw_parts_mut(
+                value.as_mut_ptr() as *mut u8,
+                size * mem::size_of::<V>(),
+            );
             reader.read_exact(buf)?;
             value.set_len(size);
         }
@@ -423,14 +431,26 @@ impl MemoryMap {
         let metadata = file.metadata()?;
         let len = metadata.len() as usize;
         if len != bits::round_up_to_word_bytes(len) {
-            return Err(Error::new(ErrorKind::Other, "File size must be a multiple of 8 bytes"));
+            return Err(Error::new(
+                ErrorKind::Other,
+                "File size must be a multiple of 8 bytes",
+            ));
         }
 
         let prot = match mode {
             MappingMode::ReadOnly => libc::PROT_READ,
             MappingMode::Mutable => libc::PROT_READ | libc::PROT_WRITE,
         };
-        let ptr = unsafe { libc::mmap(ptr::null_mut(), len, prot, libc::MAP_SHARED, file.as_raw_fd(), 0) };
+        let ptr = unsafe {
+            libc::mmap(
+                ptr::null_mut(),
+                len,
+                prot,
+                libc::MAP_SHARED,
+                file.as_raw_fd(),
+                0,
+            )
+        };
         if ptr.is_null() {
             return Err(Error::new(ErrorKind::Other, "Memory mapping failed"));
         }
@@ -647,18 +667,22 @@ impl<'a, T: Serializable> Index<usize> for MappedSlice<'a, T> {
 impl<'a, T: Serializable> MemoryMapped<'a> for MappedSlice<'a, T> {
     fn new(map: &'a MemoryMap, offset: usize) -> io::Result<Self> {
         if offset >= map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The starting offset is out of range"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The starting offset is out of range",
+            ));
         }
         let slice: &[u64] = map.as_ref();
         let len = slice[offset] as usize;
         if offset + 1 + len * T::elements() > map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The file is too short"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The file is too short",
+            ));
         }
-        let source: &[u64] = &slice[offset + 1 ..];
+        let source: &[u64] = &slice[offset + 1..];
         let data: &[T] = unsafe { slice::from_raw_parts(source.as_ptr() as *const T, len) };
-        Ok(MappedSlice {
-            data, offset,
-        })
+        Ok(MappedSlice { data, offset })
     }
 
     fn map_offset(&self) -> usize {
@@ -740,18 +764,22 @@ impl<'a> Index<usize> for MappedBytes<'a> {
 impl<'a> MemoryMapped<'a> for MappedBytes<'a> {
     fn new(map: &'a MemoryMap, offset: usize) -> io::Result<Self> {
         if offset >= map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The starting offset is out of range"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The starting offset is out of range",
+            ));
         }
         let slice: &[u64] = map.as_ref();
         let len = slice[offset] as usize;
         if offset + 1 + bits::bytes_to_words(len) > map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The file is too short"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The file is too short",
+            ));
         }
-        let source: &[u64] = &slice[offset + 1 ..];
+        let source: &[u64] = &slice[offset + 1..];
         let data: &[u8] = unsafe { slice::from_raw_parts(source.as_ptr() as *const u8, len) };
-        Ok(MappedBytes {
-            data, offset,
-        })
+        Ok(MappedBytes { data, offset })
     }
 
     fn map_offset(&self) -> usize {
@@ -822,19 +850,24 @@ impl<'a> Deref for MappedStr<'a> {
 impl<'a> MemoryMapped<'a> for MappedStr<'a> {
     fn new(map: &'a MemoryMap, offset: usize) -> io::Result<Self> {
         if offset >= map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The starting offset is out of range"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The starting offset is out of range",
+            ));
         }
         let slice: &[u64] = map.as_ref();
         let len = slice[offset] as usize;
         if offset + 1 + bits::bytes_to_words(len) > map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The file is too short"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The file is too short",
+            ));
         }
-        let source: &[u64] = &slice[offset + 1 ..];
+        let source: &[u64] = &slice[offset + 1..];
         let bytes: &[u8] = unsafe { slice::from_raw_parts(source.as_ptr() as *const u8, len) };
-        let data = str::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid UTF-8"))?;
-        Ok(MappedStr {
-            data, offset,
-        })
+        let data = str::from_utf8(bytes)
+            .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid UTF-8"))?;
+        Ok(MappedStr { data, offset })
     }
 
     fn map_offset(&self) -> usize {
@@ -913,7 +946,10 @@ impl<'a, T: MemoryMapped<'a>> MappedOption<'a, T> {
 impl<'a, T: MemoryMapped<'a>> MemoryMapped<'a> for MappedOption<'a, T> {
     fn new(map: &'a MemoryMap, offset: usize) -> io::Result<Self> {
         if offset >= map.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "The starting offset is out of range"));
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "The starting offset is out of range",
+            ));
         }
         let mut result = MappedOption {
             data: None,
@@ -948,7 +984,11 @@ impl<'a, T: MemoryMapped<'a>> MemoryMapped<'a> for MappedOption<'a, T> {
 /// Any errors from [`OpenOptions::open`] and [`Serialize::serialize`] will be passed through.
 pub fn serialize_to<T: Serialize, P: AsRef<Path>>(item: &T, filename: P) -> io::Result<()> {
     let mut options = OpenOptions::new();
-    let mut file = options.create(true).write(true).truncate(true).open(filename)?;
+    let mut file = options
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(filename)?;
     item.serialize(&mut file)?;
     Ok(())
 }
@@ -985,7 +1025,10 @@ pub fn absent_option<T: Write>(writer: &mut T) -> io::Result<()> {
 pub fn skip_option<T: Read>(reader: &mut T) -> io::Result<()> {
     let elements = usize::load(reader)?;
     if elements > 0 {
-        io::copy(&mut reader.by_ref().take((elements * bits::WORD_BYTES) as u64), &mut io::sink())?;
+        io::copy(
+            &mut reader.by_ref().take((elements * bits::WORD_BYTES) as u64),
+            &mut io::sink(),
+        )?;
     }
     Ok(())
 }
@@ -1039,9 +1082,19 @@ pub fn temp_file_name(name_part: &str) -> PathBuf {
 /// # Panics
 ///
 /// Will panic if any of the tests fails.
-pub fn test<T: Serialize + PartialEq + Debug>(original: &T, name: &str, expected_size: Option<usize>, remove: bool) -> Option<PathBuf> {
+pub fn test<T: Serialize + PartialEq + Debug>(
+    original: &T,
+    name: &str,
+    expected_size: Option<usize>,
+    remove: bool,
+) -> Option<PathBuf> {
     if let Some(value) = expected_size {
-        assert_eq!(original.size_in_elements(), value, "Size estimate for the serialized {} is not as expected", name);
+        assert_eq!(
+            original.size_in_elements(),
+            value,
+            "Size estimate for the serialized {} is not as expected",
+            name
+        );
     }
 
     let filename = temp_file_name(name);
@@ -1049,7 +1102,12 @@ pub fn test<T: Serialize + PartialEq + Debug>(original: &T, name: &str, expected
 
     let metadata = fs::metadata(&filename).unwrap();
     let len = metadata.len() as usize;
-    assert_eq!(original.size_in_bytes(), len, "Invalid size estimate for the serialized {}", name);
+    assert_eq!(
+        original.size_in_bytes(),
+        len,
+        "Invalid size estimate for the serialized {}",
+        name
+    );
 
     let copy: T = load_from(&filename).unwrap();
     assert_eq!(copy, *original, "Serialization changed the {}", name);
