@@ -720,34 +720,30 @@ fn try_pred_succ(bv: &BitVector) {
                     pred_result.is_none(),
                     "Got a predecessor result before the first set bit"
                 );
+            } else if let Some((pred_rank, pred_value)) = pred_result {
+                let new_rank = bv.rank(pred_value);
+                assert_eq!(
+                    new_rank,
+                    rank - 1,
+                    "The returned value was not the predecessor"
+                );
+                assert_eq!(pred_rank, new_rank, "Predecessor returned an invalid rank");
+                assert!(bv.get(pred_value), "Predecessor returned an unset bit");
             } else {
-                if let Some((pred_rank, pred_value)) = pred_result {
-                    let new_rank = bv.rank(pred_value);
-                    assert_eq!(
-                        new_rank,
-                        rank - 1,
-                        "The returned value was not the predecessor"
-                    );
-                    assert_eq!(pred_rank, new_rank, "Predecessor returned an invalid rank");
-                    assert!(bv.get(pred_value), "Predecessor returned an unset bit");
-                } else {
-                    panic!("Could not find a predecessor");
-                }
+                panic!("Could not find a predecessor");
             }
             if rank == bv.count_ones() {
                 assert!(
                     succ_result.is_none(),
                     "Got a successor result after the last set bit"
                 );
+            } else if let Some((succ_rank, succ_value)) = succ_result {
+                let new_rank = bv.rank(succ_value);
+                assert_eq!(new_rank, rank, "The returned value was not the successor");
+                assert_eq!(succ_rank, new_rank, "Successor returned an invalid rank");
+                assert!(bv.get(succ_value), "Successor returned an unset bit");
             } else {
-                if let Some((succ_rank, succ_value)) = succ_result {
-                    let new_rank = bv.rank(succ_value);
-                    assert_eq!(new_rank, rank, "The returned value was not the successor");
-                    assert_eq!(succ_rank, new_rank, "Successor returned an invalid rank");
-                    assert!(bv.get(succ_value), "Successor returned an unset bit");
-                } else {
-                    panic!("Could not find a successor");
-                }
+                panic!("Could not find a successor");
             }
         }
     }

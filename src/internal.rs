@@ -71,7 +71,7 @@ pub fn report_construction<T: Serialize>(object: &T, len: usize, duration: Durat
         ns
     );
     println!("Size:     {:.3} {}", size, unit);
-    println!("");
+    println!();
 }
 
 // Prints a summary report for query results.
@@ -93,7 +93,7 @@ pub fn report_results(queries: usize, total: usize, len: usize, duration: Durati
         "Average:  {:.0} absolute, {:.6} normalized",
         average, normalized
     );
-    println!("");
+    println!();
 }
 
 //-----------------------------------------------------------------------------
@@ -141,7 +141,7 @@ pub fn report_memory_usage() {
             println!("{}", f);
         }
     }
-    println!("");
+    println!();
 }
 
 //-----------------------------------------------------------------------------

@@ -584,34 +584,30 @@ fn try_pred_succ(sv: &SparseVector) {
                     pred_result.is_none(),
                     "Got a predecessor result before the first set bit"
                 );
+            } else if let Some((pred_rank, pred_value)) = pred_result {
+                let new_rank = sv.rank(pred_value);
+                assert_eq!(
+                    new_rank,
+                    rank - 1,
+                    "The returned value was not the predecessor"
+                );
+                assert_eq!(pred_rank, new_rank, "Predecessor returned an invalid rank");
+                assert!(sv.get(pred_value), "Predecessor returned an unset bit");
             } else {
-                if let Some((pred_rank, pred_value)) = pred_result {
-                    let new_rank = sv.rank(pred_value);
-                    assert_eq!(
-                        new_rank,
-                        rank - 1,
-                        "The returned value was not the predecessor"
-                    );
-                    assert_eq!(pred_rank, new_rank, "Predecessor returned an invalid rank");
-                    assert!(sv.get(pred_value), "Predecessor returned an unset bit");
-                } else {
-                    panic!("Could not find a predecessor");
-                }
+                panic!("Could not find a predecessor");
             }
             if rank == sv.count_ones() {
                 assert!(
                     succ_result.is_none(),
                     "Got a successor result after the last set bit"
                 );
+            } else if let Some((succ_rank, succ_value)) = succ_result {
+                let new_rank = sv.rank(succ_value);
+                assert_eq!(new_rank, rank, "The returned value was not the successor");
+                assert_eq!(succ_rank, new_rank, "Successor returned an invalid rank");
+                assert!(sv.get(succ_value), "Successor returned an unset bit");
             } else {
-                if let Some((succ_rank, succ_value)) = succ_result {
-                    let new_rank = sv.rank(succ_value);
-                    assert_eq!(new_rank, rank, "The returned value was not the successor");
-                    assert_eq!(succ_rank, new_rank, "Successor returned an invalid rank");
-                    assert!(sv.get(succ_value), "Successor returned an unset bit");
-                } else {
-                    panic!("Could not find a successor");
-                }
+                panic!("Could not find a successor");
             }
         }
     }
@@ -728,26 +724,22 @@ fn multiset_pred_succ(sv: &SparseVector, truth: &[usize]) {
                     pred_result.is_none(),
                     "Got a predecessor result before the first set bit"
                 );
+            } else if let Some((pred_rank, pred_value)) = pred_result {
+                assert_eq!(pred_rank, rank - 1, "Predecessor returned an invalid rank");
+                assert!(sv.get(pred_value), "Predecessor returned an unset bit");
             } else {
-                if let Some((pred_rank, pred_value)) = pred_result {
-                    assert_eq!(pred_rank, rank - 1, "Predecessor returned an invalid rank");
-                    assert!(sv.get(pred_value), "Predecessor returned an unset bit");
-                } else {
-                    panic!("Could not find a predecessor");
-                }
+                panic!("Could not find a predecessor");
             }
             if rank == sv.count_ones() {
                 assert!(
                     succ_result.is_none(),
                     "Got a successor result after the last set bit"
                 );
+            } else if let Some((succ_rank, succ_value)) = succ_result {
+                assert_eq!(succ_rank, rank, "Successor returned an invalid rank");
+                assert!(sv.get(succ_value), "Successor returned an unset bit");
             } else {
-                if let Some((succ_rank, succ_value)) = succ_result {
-                    assert_eq!(succ_rank, rank, "Successor returned an invalid rank");
-                    assert!(sv.get(succ_value), "Successor returned an unset bit");
-                } else {
-                    panic!("Could not find a successor");
-                }
+                panic!("Could not find a successor");
             }
         }
         rank += count;
@@ -776,14 +768,14 @@ fn multiset_tests(sv: &SparseVector, len: usize, truth: &[usize]) {
         "Invalid number of ones in the bitvector"
     );
 
-    multiset_access(&sv, truth);
-    try_iter(&sv);
+    multiset_access(sv, truth);
+    try_iter(sv);
     let _ = serialize::test(sv, "multiset-sparse-vector", None, true);
 
-    multiset_rank(&sv, &truth);
-    try_select(&sv, 0);
-    try_one_iter(&sv, 0);
-    multiset_pred_succ(&sv, &truth);
+    multiset_rank(sv, truth);
+    try_select(sv, 0);
+    try_one_iter(sv, 0);
+    multiset_pred_succ(sv, truth);
 }
 
 #[test]

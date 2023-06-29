@@ -235,7 +235,7 @@ mod tests {
 
     fn test_vector(len: usize, blocks: usize) {
         let data = raw_vector(len);
-        let bv = BitVector::from(data.clone());
+        let bv = BitVector::from(data);
         let rs = RankSupport::new(&bv);
         assert_eq!(bv.len(), len, "Invalid bitvector length at {}", len);
         assert_eq!(

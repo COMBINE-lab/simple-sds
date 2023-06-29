@@ -241,7 +241,7 @@ impl<'a> BitVec<'a> for BitVector {
 
 impl<'a> Rank<'a> for BitVector {
     fn supports_rank(&self) -> bool {
-        self.rank != None
+        self.rank.is_some()
     }
 
     fn enable_rank(&mut self) {
@@ -521,7 +521,7 @@ impl<'a> Select<'a> for BitVector {
     type OneIter = OneIter<'a, Identity>;
 
     fn supports_select(&self) -> bool {
-        self.select != None
+        self.select.is_some()
     }
 
     fn enable_select(&mut self) {
@@ -572,7 +572,7 @@ impl<'a> SelectZero<'a> for BitVector {
     type ZeroIter = OneIter<'a, Complement>;
 
     fn supports_select_zero(&self) -> bool {
-        self.select_zero != None
+        self.select_zero.is_some()
     }
 
     fn enable_select_zero(&mut self) {
@@ -623,7 +623,7 @@ impl<'a> PredSucc<'a> for BitVector {
     type OneIter = OneIter<'a, Identity>;
 
     fn supports_pred_succ(&self) -> bool {
-        self.rank != None && self.select != None
+        self.rank.is_some() && self.select.is_some()
     }
 
     fn enable_pred_succ(&mut self) {

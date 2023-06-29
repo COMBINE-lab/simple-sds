@@ -129,7 +129,7 @@ impl<T: Transformation> SelectSupport<T> {
         let mut iter = T::one_iter(parent);
         let mut value = iter.next();
 
-        while sample != None {
+        while sample.is_some() {
             let start = sample.unwrap();
             let next_sample = sample_iter.nth(Self::SUPERBLOCK_SIZE - 1);
             let limit = match next_sample {
@@ -354,7 +354,7 @@ mod tests {
 
     fn test_vector(len: usize, density: f64) {
         let data = with_density(len, density);
-        let bv = BitVector::from(data.clone());
+        let bv = BitVector::from(data);
         let ss = SelectSupport::<Identity>::new(&bv);
         assert_eq!(
             bv.len(),
