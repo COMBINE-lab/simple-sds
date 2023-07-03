@@ -35,7 +35,7 @@ use std::{cmp, io};
 ///
 /// The structure depends on the parent bitvector and assumes that the parent remains unchanged.
 /// Using the [`BitVector`] interface is usually more convenient.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RankSupport {
     // No RawVector or bits::read_int because we want to avoid branching.
     samples: Vec<(u64, u64)>,

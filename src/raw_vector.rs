@@ -292,7 +292,7 @@ pub trait PopRaw {
 /// * The unused part of the last integer is always set to `0`.
 /// * The underlying vector may allocate but not use more integers than are strictly necessary.
 /// * `RawVector` never panics from I/O errors.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct RawVector {
     len: usize,
     data: Vec<u64>,

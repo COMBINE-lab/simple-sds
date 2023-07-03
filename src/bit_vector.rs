@@ -99,7 +99,7 @@ mod tests;
 /// # Notes
 ///
 /// * `BitVector` never panics from I/O errors.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BitVector {
     ones: usize,
     data: RawVector,

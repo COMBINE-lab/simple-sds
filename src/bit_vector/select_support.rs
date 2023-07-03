@@ -43,7 +43,7 @@ use std::{io, marker};
 /// Using the [`BitVector`] interface is usually more convenient.
 ///
 /// This type must be parametrized with a [`Transformation`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SelectSupport<T: Transformation> {
     // (superblock sample, 2 * index + is_short) for each superblock.
     samples: IntVector,
