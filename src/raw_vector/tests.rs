@@ -45,8 +45,14 @@ fn num_bits() {
     let v2_nb = v2_bytes * 8;
     assert_eq!(v2.num_bits(), v2_nb);
 
-    let v2 = RawVector::with_capacity(2000);
-    assert_eq!(v2.num_bits(), v2_nb);
+    // sanity check and example to understand bincode serialization vs in memory repr.
+    // bincode need not record capcity and pointer to allocated mem since bits occur 
+    // immediately after one u64 to indicate Vec length.
+    let v2 = RawVector::with_len(1, true);
+    let v = Vec::<u64>::new();
+    let ptr_and_cap = 128;
+    let correct = (bincode::serialized_size(&v2).unwrap() * 8) + ptr_and_cap;
+    assert_eq!(v2.num_bits(), correct as usize);
 }
 
 #[test]

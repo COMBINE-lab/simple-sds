@@ -303,7 +303,7 @@ impl RawVector {
     pub fn num_bits(&self) -> usize {
         let bytes = std::mem::size_of::<usize>()
             + std::mem::size_of::<Vec<u64>>()
-            + self.data.capacity() * std::mem::size_of::<u64>();
+            + self.data.len() * std::mem::size_of::<u64>();
         bytes * 8
     }
 

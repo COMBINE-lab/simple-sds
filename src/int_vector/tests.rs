@@ -277,7 +277,10 @@ fn num_bits() {
     // 3000 / 512
     let bytes = ((len * width) / 8) + 1;
     let bytes = bytes + std::mem::size_of::<IntVector>();
-    assert_eq!(iv.num_bits(), bytes * 8)
+    assert_eq!(iv.num_bits(), bytes * 8);
+
+    // serde misses 1 word for pointer to heap, and 1 word for capacity
+    assert_eq!(iv.num_bits(), (bincode::serialized_size(&iv).unwrap() * 8) as usize + 128)
 }
 
 //-----------------------------------------------------------------------------
