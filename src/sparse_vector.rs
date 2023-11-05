@@ -126,7 +126,7 @@ mod tests;
 ///
 /// * `SparseVector` never panics from I/O errors.
 /// * All `SparseVector` queries are always enabled without additional support structures.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SparseVector {
     len: usize,
     high: BitVector,
